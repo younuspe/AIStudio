@@ -3,7 +3,11 @@ import type { Client } from "@libsql/client";
 import path from "path";
 import fs from "fs";
 
-const DB_DIR = path.join(process.cwd(), "data");
+// Desktop builds store mutable data in the OS-managed application data directory.
+// Keep the existing project-local location as the development fallback.
+const DB_DIR = process.env.AI_STUDIO_DATA_DIR
+  ? path.resolve(process.env.AI_STUDIO_DATA_DIR)
+  : path.join(process.cwd(), "data");
 const DB_PATH = path.join(DB_DIR, "ai-studio.db");
 
 // Ensure data directory exists
