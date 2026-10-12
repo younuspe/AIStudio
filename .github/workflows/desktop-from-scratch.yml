@@ -33,21 +33,51 @@ jobs:
           /tmp/icon-venv/bin/python -m pip install --disable-pip-version-check Pillow
           /tmp/icon-venv/bin/python -c 'from pathlib import Path; from PIL import Image; src=Image.open("/tmp/supru-stud-icon-source.png"); src.load(); out=src.convert("RGBA").resize((1024,1024), Image.Resampling.LANCZOS); out.save("src-tauri/icons/icon.png", format="PNG", optimize=True); check=Image.open("src-tauri/icons/icon.png"); assert check.mode=="RGBA" and check.size==(1024,1024), f"Wrong icon format: {check.mode} {check.size}"; icns=Path("src-tauri/icons/SupruStud-AppIcon.icns").read_bytes(); png=Path("src-tauri/icons/icon.png").read_bytes(); assert icns.startswith(b"icns") and png.startswith(bytes.fromhex("89504e470d0a1a0a")); print(f"Verified Supru Stud icon: ICNS {len(icns)} bytes; PNG {check.mode} {check.size}, {len(png)} bytes")'
           file src-tauri/icons/SupruStud-AppIcon.icns src-tauri/icons/icon.png
-      - name: Build development macOS desktop app and DMG
+      - name: Build macOS desktop app and initial DMG
         run: npm run tauri build
-      - name: Inspect development DMG and app integrity
+      - name: Repair and verify the app bundle signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          DMG="$(find src-tauri/target/release/bundle/dmg -maxdepth 1 -name '*.dmg' -print -quit)"
+          test -n "$DMG"
+          WORK="$(mktemp -d /tmp/aistudio-sign.XXXXXX)"
+          MOUNT_POINT="$WORK/mount"
+          mkdir -p "$MOUNT_POINT" "$WORK/staging"
+          cleanup() {
+            hdiutil detach "$MOUNT_POINT" -quiet 2>/dev/null || true
+            rm -rf "$WORK"
+          }
+          trap cleanup EXIT
+          mv "$DMG" "$WORK/tauri-original.dmg"
+          hdiutil attach "$WORK/tauri-original.dmg" -readonly -nobrowse -mountpoint "$MOUNT_POINT" -quiet
+          APP="$(find "$MOUNT_POINT" -maxdepth 2 -name '*.app' -print -quit)"
+          test -n "$APP"
+          APP_NAME="$(basename "$APP")"
+          ditto "$APP" "$WORK/staging/$APP_NAME"
+          hdiutil detach "$MOUNT_POINT" -quiet
+          ln -s /Applications "$WORK/staging/Applications"
+          echo "Applying a complete local ad-hoc signature (not an Apple Developer ID signature)."
+          codesign --force --deep --sign - --timestamp=none "$WORK/staging/$APP_NAME"
+          echo "===== STRICT APP BUNDLE SIGNATURE VERIFICATION ====="
+          codesign --verify --deep --strict --verbose=2 "$WORK/staging/$APP_NAME"
+          echo "===== VERIFY RESOURCE SEAL EXISTS ====="
+          test -f "$WORK/staging/$APP_NAME/Contents/_CodeSignature/CodeResources"
+          echo "===== REBUILD DMG FROM THE SIGNED APP ====="
+          hdiutil create -volname "AI Studio Desktop" -srcfolder "$WORK/staging" -ov -format UDZO "$DMG"
+          file "$DMG"
+          shasum -a 256 "$DMG"
+      - name: Inspect DMG and assess Gatekeeper
         shell: bash
         run: |
           set -euo pipefail
           DMG="$(find src-tauri/target/release/bundle/dmg -maxdepth 1 -name '*.dmg' -print -quit)"
           test -n "$DMG"
           echo "===== DISK IMAGE ====="
-          file "$DMG"
           hdiutil imageinfo "$DMG"
-          shasum -a 256 "$DMG"
           MOUNT_POINT="$(mktemp -d /tmp/aistudio-dmg.XXXXXX)"
           cleanup() {
-            hdiutil detach "$MOUNT_POINT" -quiet || true
+            hdiutil detach "$MOUNT_POINT" -quiet 2>/dev/null || true
             rmdir "$MOUNT_POINT" 2>/dev/null || true
           }
           trap cleanup EXIT
@@ -58,30 +88,26 @@ jobs:
           echo "App bundle: $APP"
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist"
-          echo "===== CODE SIGNATURE DETAILS ====="
+          echo "===== STRICT CODE SIGNATURE INTEGRITY CHECK (MUST PASS) ====="
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          echo "===== SIGNATURE DETAILS ====="
           codesign -dv --verbose=4 "$APP" 2>&1 || true
-          echo "===== CODE SIGNATURE INTEGRITY CHECK ====="
-          if codesign --verify --deep --strict --verbose=2 "$APP"; then
-            echo "codesign verification: PASS"
-          else
-            echo "::warning::codesign verification failed or app is unsigned; see output above."
-          fi
           echo "===== GATEKEEPER ASSESSMENT (DIAGNOSTIC) ====="
           if spctl --assess --type execute --verbose=4 "$APP"; then
             echo "Gatekeeper assessment: PASS"
           else
-            echo "::warning::Gatekeeper assessment rejected this development app; this is diagnostic, not proof of a damaged bundle."
+            echo "::warning::Gatekeeper may still reject this unsigned/unnotarized development app. Ad-hoc signing fixes bundle integrity but does not provide Apple Developer ID trust or notarization."
           fi
           echo "===== EXECUTABLE ARCHITECTURE ====="
           EXECUTABLE="$APP/Contents/MacOS/aistudio-desktop"
           test -f "$EXECUTABLE"
           file "$EXECUTABLE"
           lipo -info "$EXECUTABLE"
-          echo "::notice::Development artifact is unsigned/not notarized unless diagnostics above prove otherwise. Do not treat build success alone as launch verification."
+          echo "::notice::Bundle signature integrity was checked. This is still an ad-hoc signed, non-notarized development artifact; build success does not guarantee Gatekeeper acceptance."
       - name: Upload diagnostic development DMG
         uses: actions/upload-artifact@v4
         with:
-          name: AIStudio-Desktop-DEV-Unsigned-macOS-AppleSilicon
+          name: AIStudio-Desktop-DEV-AdHoc-Signed-macOS-AppleSilicon
           path: src-tauri/target/release/bundle/dmg/*.dmg
           if-no-files-found: error
           retention-days: 7
