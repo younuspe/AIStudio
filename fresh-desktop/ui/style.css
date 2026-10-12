@@ -68,3 +68,23 @@ html,body{background:#050505;color:#f5f2f1}
 .history-item:hover{border-color:#ff624d;background:#1b100e}
 .toast.error{border-color:#ff624d}
 @media(prefers-reduced-motion:no-preference){.primary,.send,.rail-action,.suggestions button,.tab,.tool-chip{transition:background-color .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease}}
+
+
+/* Requested workspace: chat above, live preview below; all preview tools stay in its top toolbar. */
+.workspace{
+  --builder-height:56%;
+  grid-template-columns:minmax(0,1fr);
+  grid-template-rows:minmax(300px,var(--builder-height)) 6px minmax(180px,1fr);
+}
+.builder{grid-column:1;grid-row:1;min-height:0;border-bottom:1px solid #29201f}
+.workspace-splitter{
+  grid-column:1;grid-row:2;width:auto;height:6px;min-height:6px;
+  cursor:row-resize;touch-action:none;
+}
+.workspace-splitter:after{top:-3px;bottom:-3px;left:0;right:0}
+.preview{grid-column:1;grid-row:3;min-height:0}
+.preview-tabs{position:relative;z-index:1;flex:0 0 48px;height:48px}
+@media(max-width:900px){
+  .workspace{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(300px,var(--builder-height)) 6px minmax(180px,1fr)}
+  .builder{padding:16px 18px 9px}
+}
