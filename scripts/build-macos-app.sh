@@ -3,7 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$BASH_SOURCE")/.." && pwd)"
 APP_NAME="AIStudio"
-if (( $# > 0 )); then OUTPUT="$1"; else OUTPUT="$ROOT/dist/$APP_NAME.app"; fi
+APP_BUNDLE_NAME="Supru App Builder"
+if (( $# > 0 )); then OUTPUT="$1"; else OUTPUT="$ROOT/dist/$APP_BUNDLE_NAME.app"; fi
 ARM_BUILD="$ROOT/.build/arm64"
 INTEL_BUILD="$ROOT/.build/x86_64"
 BINARY="$ROOT/.build/release/$APP_NAME"
@@ -56,7 +57,7 @@ cat > "$OUTPUT/Contents/Info.plist" <<'PLIST'
     <key>CFBundleExecutable</key>
     <string>AIStudio</string>
     <key>CFBundleIdentifier</key>
-    <string>com.aistudio.desktop</string>
+    <string>com.supru.appbuilder</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
@@ -82,9 +83,9 @@ cat > "$OUTPUT/Contents/Info.plist" <<'PLIST'
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSMicrophoneUsageDescription</key>
-    <string>AIStudio uses the microphone only when you choose voice dictation.</string>
+    <string>Supru App Builder uses the microphone only when you choose voice dictation.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
-    <string>AIStudio converts your dictated prompt into editable text.</string>
+    <string>Supru App Builder converts your dictated prompt into editable text.</string>
 </dict>
 </plist>
 PLIST
