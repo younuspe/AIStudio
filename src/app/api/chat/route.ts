@@ -76,13 +76,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("[chat/api] Settings:", {
-      base_url: settingsRow.base_url,
-      api_protocol: settingsRow.api_protocol,
-      proxy_url: settingsRow.proxy_url || "(none)",
-      model: settingsRow.selected_model,
-      hasApiKey: !!settingsRow.api_key,
-    });
+    // Provider URLs and proxy settings can contain private deployment details; do not log them.
 
     // Normalize proxy_url: treat null/undefined/empty as no proxy
     const proxyUrl = (settingsRow.proxy_url as string) || "";
@@ -430,12 +424,12 @@ export async function POST(request: NextRequest) {
       for (const att of attachments) {
         const mimeType = att.mime_type || att.mimeType || att.type || '';
         const dataUrl = att.data_url || att.dataUrl || '';
-        console.log("[chat/api] Attachment:", { mimeType, dataUrlLen: dataUrl.length, name: att.name });
+        // Do not log attachment names or metadata; attachments can contain private data.
         // Check size limits: video=50MB, others=20MB
         const isVideo = mimeType.startsWith('video/');
         const maxSize = isVideo ? MAX_VIDEO_ATTACHMENT_SIZE : MAX_ATTACHMENT_SIZE;
         if (dataUrl.length > maxSize * 1.5) {
-          console.warn("[chat/api] Rejecting oversized attachment:", att.name, "size:", dataUrl.length, "max:", maxSize);
+          console.warn("[chat/api] Rejecting oversized attachment.");
           continue;
         }
         if (mimeType.startsWith('image/')) {
@@ -558,7 +552,7 @@ export async function POST(request: NextRequest) {
           };
 
           try {
-            console.log("[chat/stream] Calling sendChatRequestStream, model:", useModel, "protocol:", settingsRow.api_protocol, "proxyUrl:", proxyUrl || "(none)");
+            console.log("[chat/stream] Starting streaming request.");
             console.log("[chat/stream] API messages count:", apiMessages.length);
             await sendChatRequestStream(
               settingsRow.base_url as string,
@@ -568,7 +562,7 @@ export async function POST(request: NextRequest) {
               apiMessages,
               useTemp as number,
               (delta: StreamDelta) => {
-                console.log("[chat/stream] Delta received:", delta.type, delta.text ? `(text: "${delta.text.slice(0, 50)}")` : "");
+                // Never log generated text: model responses may contain private user data.
                 let sseEvent = "";
                 switch (delta.type) {
                   case "text": {
@@ -649,7 +643,7 @@ export async function POST(request: NextRequest) {
             controller.close();
           } catch (err: any) {
             console.error("[chat/stream] Stream error:", err.message);
-            console.error("[chat/stream] Stack:", err.stack);
+            // Stack traces may expose local paths or provider details; keep them out of logs.
             console.error("[chat/stream] fullText so far:", fullText.length, "chars");
             // Persist whatever was generated before the failure/abort so the
             // partial reply (and its billed tokens) survives the reload.
@@ -772,7 +766,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("[chat/api] Request failed:", error.message);
-    console.error("[chat/api] Stack:", error.stack);
+    // Avoid logging stack traces that may expose local paths or request details.
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
