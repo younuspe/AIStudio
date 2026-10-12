@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "AI Studio Desktop",
+  "productName": "Supru App Builder",
   "version": "0.1.0",
-  "identifier": "com.aistudio.desktopfresh",
+  "identifier": "com.supru.appbuilder",
   "build": {
     "beforeBuildCommand": "",
     "beforeDevCommand": "",
@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "AI Studio Desktop",
+        "title": "Supru App Builder",
         "width": 1440,
         "height": 900,
         "minWidth": 1080,
@@ -31,7 +31,7 @@
       "app"
     ],
     "category": "DeveloperTool",
-    "shortDescription": "Native AI app-building workspace",
+    "shortDescription": "Native Supru app-building workspace",
     "icon": [
       "../ui/AppIcon.icns"
     ]
