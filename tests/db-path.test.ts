@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
-import { resolveDatabasePath } from "../src/lib/db-path.ts";
+import { resolveDatabasePath } from "../src/lib/db-path";
 
 test("uses the desktop app-data directory when configured", () => {
   assert.equal(
