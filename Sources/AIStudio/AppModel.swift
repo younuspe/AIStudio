@@ -801,8 +801,19 @@ final class AppModel: ObservableObject {
             lastError = "Open a project folder first, then generate into that folder."
             return
         }
-        let requestText = projectPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !requestText.isEmpty, !isGeneratingProject else { return }
+        let rawProjectRequest = projectPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !rawProjectRequest.isEmpty, !isGeneratingProject else { return }
+        let existingSourceContext = buildExistingProjectContext(root: root)
+        let isIncrementalProjectUpdate = !existingSourceContext.isEmpty
+        let requestText = isIncrementalProjectUpdate
+            ? """
+              User request:
+              \(rawProjectRequest)
+
+              Existing project source context (read-only reference; preserve unrelated files and behaviors):
+              \(existingSourceContext)
+              """
+            : rawProjectRequest
 
         let provider = activeProvider
         let key = KeychainStore.read(account: provider.keychainAccount) ?? ""
@@ -812,17 +823,31 @@ final class AppModel: ObservableObject {
 
         Task {
             do {
-                let planSystem = """
-                You are a senior software architect planning a complete, runnable project.
-                Return ONLY one valid JSON object with this exact shape:
-                {"files":[{"path":"relative/path.ext","purpose":"what this file implements"}]}
-                Plan between 1 and 60 useful files for a complete, runnable application. Include the actual application UI,
-                functional state and interactions, dependency manifest, runtime/build configuration, README, and starter tests.
-                If the user did not specify a stack, prefer a local web app using React, TypeScript, and Vite with npm scripts.
-                Do not produce a static visual-only mockup or placeholder handlers. All visible controls must perform their
-                described actions. Keep all paths relative; avoid generated output, binary assets, lockfiles, and unnecessary files.
-                Do not output Markdown fences or explanation outside JSON.
-                """
+                let planSystem: String
+                if isIncrementalProjectUpdate {
+                    planSystem = """
+                    You are a senior software engineer modifying an EXISTING application.
+                    Return ONLY JSON with this shape:
+                    {"files":[{"path":"relative/path.ext","purpose":"what needs to change"}]}
+                    Inspect the supplied source context and make a minimal, targeted plan for the user's requested change.
+                    Include ONLY files that actually need to be created or modified. Do not recreate the app scaffold,
+                    replace unrelated files, rename the architecture, remove existing working features, or invent unjustified files.
+                    Preserve existing conventions, dependencies, and design. Keep every path relative.
+                    Do not output Markdown fences or explanation outside JSON.
+                    """
+                } else {
+                    planSystem = """
+                    You are a senior software architect planning a complete, runnable project.
+                    Return ONLY one valid JSON object with this exact shape:
+                    {"files":[{"path":"relative/path.ext","purpose":"what this file implements"}]}
+                    Plan between 1 and 60 useful files for a complete, runnable application. Include the actual application UI,
+                    functional state and interactions, dependency manifest, runtime/build configuration, README, and starter tests.
+                    If the user did not specify a stack, prefer a local web app using React, TypeScript, and Vite with npm scripts.
+                    Do not produce a static visual-only mockup or placeholder handlers. All visible controls must perform their
+                    described actions. Keep all paths relative; avoid generated output, binary assets, lockfiles, and unnecessary files.
+                    Do not output Markdown fences or explanation outside JSON.
+                    """
+                }
                 let planReply = try await AIProviderClient.complete(
                     provider: provider,
                     apiKey: key,
@@ -858,18 +883,32 @@ final class AppModel: ObservableObject {
                     let batchList = batch.map { "- \($0.path): \($0.purpose)" }.joined(separator: "\n")
                     statusMessage = "Generating project files \(offset + 1)–\(end) of \(plan.files.count)…"
 
-                    let fileSystemPrompt = """
-                    You are a senior software engineer writing production-quality project source files.
-                    Return ONLY valid JSON in this shape:
-                    {"files":[{"path":"relative/path.ext","content":"complete file content"}]}
-                    Generate the complete contents for every requested file, with correct JSON escaping.
-                    Implement all described interactions and real application behavior, not just a visual scaffold.
-                    Include error/loading/empty states, input validation, reasonable accessibility, and tests where suitable.
-                    Include dependency manifests and accurate dev/build/test scripts. Do not invent credentials or claim a
-                    backend exists when it does not; use an honest local implementation if no backend was specified.
-                    Return every requested path exactly once, do not add unrequested paths, do not use Markdown fences,
-                    and do not place explanatory text outside the JSON object.
-                    """
+                    let fileSystemPrompt: String
+                    if isIncrementalProjectUpdate {
+                        fileSystemPrompt = """
+                        You are a senior software engineer carefully modifying an existing application.
+                        Return ONLY valid JSON in this shape:
+                        {"files":[{"path":"relative/path.ext","content":"complete replacement file content"}]}
+                        Use the supplied existing source context. Return complete contents for ONLY the planned files in this batch.
+                        Preserve unrelated behavior, conventions, APIs, accessibility, tests, and dependencies. Do not create
+                        placeholders or rewrite unrelated code. New behavior must be implemented, not merely described.
+                        Return every requested path exactly once, do not add unrequested paths, do not use Markdown fences,
+                        and do not place explanatory text outside the JSON object.
+                        """
+                    } else {
+                        fileSystemPrompt = """
+                        You are a senior software engineer writing production-quality project source files.
+                        Return ONLY valid JSON in this shape:
+                        {"files":[{"path":"relative/path.ext","content":"complete file content"}]}
+                        Generate the complete contents for every requested file, with correct JSON escaping.
+                        Implement all described interactions and real application behavior, not just a visual scaffold.
+                        Include error/loading/empty states, input validation, reasonable accessibility, and tests where suitable.
+                        Include dependency manifests and accurate dev/build/test scripts. Do not invent credentials or claim a
+                        backend exists when it does not; use an honest local implementation if no backend was specified.
+                        Return every requested path exactly once, do not add unrequested paths, do not use Markdown fences,
+                        and do not place explanatory text outside the JSON object.
+                        """
+                    }
                     let fileReply = try await AIProviderClient.complete(
                         provider: provider,
                         apiKey: key,
@@ -1007,6 +1046,56 @@ final class AppModel: ObservableObject {
                 }
             }
         }
+    }
+
+    private func buildExistingProjectContext(root: URL) -> String {
+        let allowedExtensions = Set([
+            "ts", "tsx", "js", "jsx", "mjs", "cjs", "html", "css", "scss",
+            "json", "md", "txt", "py", "rs", "go", "java", "kt", "c", "h",
+            "hpp", "cpp", "swift", "toml", "yaml", "yml", "xml", "sql", "sh"
+        ])
+        let excludedNames = Set([
+            ".env", ".env.local", ".env.production", "credentials.json",
+            "secrets.json", "service-account.json", "id_rsa", "id_ed25519"
+        ])
+        var remainingCharacters = 60_000
+        var blocks: [String] = []
+        var includedFiles = 0
+
+        for entry in workspaceFiles where !entry.isDirectory {
+            guard remainingCharacters > 0, includedFiles < 32,
+                  isInsideWorkspace(entry.url, root: root) else { continue }
+            let url = entry.url.standardizedFileURL
+            let fileName = url.lastPathComponent.lowercased()
+            let fileExtension = url.pathExtension.lowercased()
+            guard !excludedNames.contains(fileName),
+                  !fileName.hasPrefix(".env."),
+                  !fileName.contains("secret"),
+                  !fileName.contains("credential"),
+                  !["pem", "key", "p12", "pfx", "mobileprovision"].contains(fileExtension),
+                  allowedExtensions.contains(fileExtension) else { continue }
+
+            do {
+                let attributes = try fileManager.attributesOfItem(atPath: url.path)
+                let size = (attributes[.size] as? NSNumber)?.intValue ?? 0
+                guard size > 0, size <= 200_000 else { continue }
+                let data = try Data(contentsOf: url)
+                guard let text = String(data: data, encoding: .utf8), !text.isEmpty else { continue }
+                let relative = url.path.replacingOccurrences(of: root.path + "/", with: "")
+                let excerptLimit = min(12_000, remainingCharacters)
+                let excerpt = String(text.prefix(excerptLimit))
+                blocks.append("FILE: \(relative)\n--- BEGIN EXISTING SOURCE ---\n\(excerpt)\n--- END EXISTING SOURCE ---")
+                remainingCharacters -= excerpt.count
+                includedFiles += 1
+                if excerpt.count < text.count {
+                    blocks.append("[Existing source context was truncated to stay within the request-size limit.]")
+                    break
+                }
+            } catch {
+                continue
+            }
+        }
+        return blocks.joined(separator: "\n\n")
     }
 
     private static func normalizeProjectPath(_ value: String) -> String {

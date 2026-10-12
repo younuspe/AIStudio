@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 private enum GenerativeStudioMode: String, CaseIterable, Identifiable {
     case playground = "Model Playground"
@@ -63,6 +64,9 @@ struct GenerativeStudioWorkspace: View {
         .onAppear {
             if modelIDs.isEmpty { modelIDs = model.activeProvider.model }
             loadPlaygroundHistory()
+        }
+        .onChange(of: model.selectedProviderID) { _ in
+            modelIDs = model.activeProvider.model
         }
     }
 
@@ -348,8 +352,18 @@ struct GenerativeStudioWorkspace: View {
                             Button("Provider Settings") { model.selectedSection = .settings }
                         }
 
-                        TextField("Image model ID (for example, gpt-image-1)", text: $model.imageModelID)
+                        TextField(model.activeProvider.id == "gemini"
+                                  ? "Gemini image-capable model ID"
+                                  : "Image model ID (for example, gpt-image-1)",
+                                  text: $model.imageModelID)
                             .textFieldStyle(.roundedBorder)
+                        if model.activeProvider.id == "gemini", !model.discoveredModels.isEmpty {
+                            Menu("Choose from listed Gemini models") {
+                                ForEach(model.discoveredModels, id: \.self) { id in
+                                    Button(id) { model.imageModelID = id }
+                                }
+                            }
+                        }
                         Picker("Image size", selection: $model.imageSize) {
                             ForEach(imageSizes, id: \.self) { size in
                                 Text(size).tag(size)
