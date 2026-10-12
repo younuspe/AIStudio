@@ -103,5 +103,9 @@ cat > "$OUTPUT/Contents/Info.plist" <<'PLIST'
 PLIST
 printf 'APPL????' > "$OUTPUT/Contents/PkgInfo"
 
-echo "Created Universal 2 native macOS app bundle: $OUTPUT"
+echo "Applying local ad-hoc signature (not Apple notarization)…"
+codesign --force --deep --sign - "$OUTPUT"
+codesign --verify --deep --strict --verbose=2 "$OUTPUT"
+
+echo "Created signed (not notarized) Universal 2 native macOS app bundle: $OUTPUT"
 lipo "$OUTPUT/Contents/MacOS/$APP_NAME" -info
