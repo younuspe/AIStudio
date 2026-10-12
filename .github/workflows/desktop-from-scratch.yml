@@ -35,13 +35,15 @@ jobs:
           file src-tauri/icons/SupruStud-AppIcon.icns src-tauri/icons/icon.png
       - name: Build development macOS desktop app and DMG
         run: npm run tauri build
-      - name: Inspect development DMG (not notarized)
+      - name: Inspect development DMG and app integrity
         shell: bash
         run: |
           set -euo pipefail
           DMG="$(find src-tauri/target/release/bundle/dmg -maxdepth 1 -name '*.dmg' -print -quit)"
           test -n "$DMG"
+          echo "===== DISK IMAGE ====="
           file "$DMG"
+          hdiutil imageinfo "$DMG"
           shasum -a 256 "$DMG"
           MOUNT_POINT="$(mktemp -d /tmp/aistudio-dmg.XXXXXX)"
           cleanup() {
@@ -52,11 +54,31 @@ jobs:
           hdiutil attach "$DMG" -readonly -nobrowse -mountpoint "$MOUNT_POINT" -quiet
           APP="$(find "$MOUNT_POINT" -maxdepth 2 -name '*.app' -print -quit)"
           test -n "$APP"
-          echo "Found app bundle: $APP"
+          echo "===== APP IDENTITY ====="
+          echo "App bundle: $APP"
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist"
-          echo "::notice::Development artifact only: not Developer ID signed/notarized and not Gatekeeper-approved."
-      - name: Upload development-only Apple Silicon DMG
+          echo "===== CODE SIGNATURE DETAILS ====="
+          codesign -dv --verbose=4 "$APP" 2>&1 || true
+          echo "===== CODE SIGNATURE INTEGRITY CHECK ====="
+          if codesign --verify --deep --strict --verbose=2 "$APP"; then
+            echo "codesign verification: PASS"
+          else
+            echo "::warning::codesign verification failed or app is unsigned; see output above."
+          fi
+          echo "===== GATEKEEPER ASSESSMENT (DIAGNOSTIC) ====="
+          if spctl --assess --type execute --verbose=4 "$APP"; then
+            echo "Gatekeeper assessment: PASS"
+          else
+            echo "::warning::Gatekeeper assessment rejected this development app; this is diagnostic, not proof of a damaged bundle."
+          fi
+          echo "===== EXECUTABLE ARCHITECTURE ====="
+          EXECUTABLE="$APP/Contents/MacOS/aistudio-desktop"
+          test -f "$EXECUTABLE"
+          file "$EXECUTABLE"
+          lipo -info "$EXECUTABLE"
+          echo "::notice::Development artifact is unsigned/not notarized unless diagnostics above prove otherwise. Do not treat build success alone as launch verification."
+      - name: Upload diagnostic development DMG
         uses: actions/upload-artifact@v4
         with:
           name: AIStudio-Desktop-DEV-Unsigned-macOS-AppleSilicon
