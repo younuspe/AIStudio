@@ -26,7 +26,7 @@ final class VoiceInputController: ObservableObject {
                 }
             }
             guard speechStatus == .authorized else {
-                errorMessage = "Enable Speech Recognition for AIStudio in macOS Privacy & Security settings, then try again."
+                errorMessage = "Enable Speech Recognition for Supru App Builder in macOS Privacy & Security settings, then try again."
                 return
             }
 
@@ -36,7 +36,7 @@ final class VoiceInputController: ObservableObject {
                 }
             }
             guard micGranted else {
-                errorMessage = "Enable microphone access for AIStudio in macOS Privacy & Security settings, then try again."
+                errorMessage = "Enable microphone access for Supru App Builder in macOS Privacy & Security settings, then try again."
                 return
             }
             beginAudioRecognition()
