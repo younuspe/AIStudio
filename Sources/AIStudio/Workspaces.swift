@@ -166,6 +166,10 @@ struct ProjectWorkspace: View {
                     .disabled(model.workspaceURL == nil)
                 Button { model.createNewFolder() } label: { Label("New Folder", systemImage: "folder.badge.plus") }
                     .disabled(model.workspaceURL == nil)
+                Button { model.renameSelectedFile() } label: { Label("Rename", systemImage: "pencil") }
+                    .disabled(model.selectedFileURL == nil)
+                Button { model.deleteSelectedFile() } label: { Label("Delete", systemImage: "trash") }
+                    .disabled(model.selectedFileURL == nil)
                 Button { model.saveCurrentFile() } label: { Label("Save", systemImage: "square.and.arrow.down") }
                     .disabled(model.selectedFileURL == nil || !model.fileIsDirty)
                     .keyboardShortcut("s", modifiers: .command)

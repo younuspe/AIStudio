@@ -100,6 +100,7 @@ final class AppModel: ObservableObject {
     @Published var selectedFileURL: URL?
     @Published var fileContent = ""
     @Published var fileIsDirty = false
+    private var savedFileContent = ""
     @Published var previewFileURL: URL?
     @Published var previewRefreshID = UUID()
 
@@ -285,6 +286,7 @@ final class AppModel: ObservableObject {
                 return
             }
             selectedFileURL = url
+            savedFileContent = text
             fileContent = text
             fileIsDirty = false
             lastError = nil
@@ -294,7 +296,8 @@ final class AppModel: ObservableObject {
     }
 
     func markFileDirty() {
-        if selectedFileURL != nil { fileIsDirty = true }
+        guard selectedFileURL != nil else { return }
+        fileIsDirty = fileContent != savedFileContent
     }
 
     func saveCurrentFile() {
@@ -304,6 +307,7 @@ final class AppModel: ObservableObject {
         }
         do {
             try Data(fileContent.utf8).write(to: url, options: .atomic)
+            savedFileContent = fileContent
             fileIsDirty = false
             statusMessage = "Saved \(url.lastPathComponent)"
             lastError = nil
@@ -362,6 +366,71 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func renameSelectedFile() {
+        guard let url = selectedFileURL, let root = workspaceURL, isInsideWorkspace(url, root: root) else {
+            lastError = "Select a file inside the open project before renaming."
+            return
+        }
+        if fileIsDirty {
+            saveCurrentFile()
+            if fileIsDirty { return }
+        }
+        guard let newPath = promptForPath(title: "Rename File", message: "Enter a new relative path inside this project.", confirm: "Rename"),
+              let destination = validatedProjectURL(newPath, root: root) else {
+            lastError = "Use a relative path inside the project folder."
+            return
+        }
+        guard destination.path != url.resolvingSymlinksInPath().standardizedFileURL.path else { return }
+        guard !fileManager.fileExists(atPath: destination.path) else {
+            lastError = "A file or folder already exists at that path."
+            return
+        }
+        do {
+            try fileManager.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try fileManager.moveItem(at: url, to: destination)
+            selectedFileURL = destination
+            fileIsDirty = false
+            if previewFileURL?.path == url.path {
+                previewFileURL = destination
+                previewRefreshID = UUID()
+            }
+            refreshWorkspaceFiles()
+            statusMessage = "Renamed file to \(newPath)"
+            lastError = nil
+        } catch {
+            lastError = "Could not rename file: \(error.localizedDescription)"
+        }
+    }
+
+    func deleteSelectedFile() {
+        guard let url = selectedFileURL, let root = workspaceURL, isInsideWorkspace(url, root: root) else {
+            lastError = "Select a file inside the open project before deleting."
+            return
+        }
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Delete \(url.lastPathComponent)?"
+        alert.informativeText = fileIsDirty
+            ? "This permanently removes the file and discards unsaved editor changes."
+            : "This permanently removes the selected file from the project folder."
+        alert.addButton(withTitle: "Delete File")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        do {
+            try fileManager.removeItem(at: url)
+            if previewFileURL?.path == url.path { previewFileURL = nil }
+            selectedFileURL = nil
+            fileContent = ""
+            savedFileContent = ""
+            fileIsDirty = false
+            refreshWorkspaceFiles()
+            statusMessage = "Deleted \(url.lastPathComponent)"
+            lastError = nil
+        } catch {
+            lastError = "Could not delete file: \(error.localizedDescription)"
+        }
+    }
+
     private func promptForPath(title: String, message: String, confirm: String) -> String? {
         let alert = NSAlert()
         alert.messageText = title
@@ -369,7 +438,7 @@ final class AppModel: ObservableObject {
         alert.addButton(withTitle: confirm)
         alert.addButton(withTitle: "Cancel")
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
-        field.placeholderString = title == "New Folder" ? "src/components" : "src/new-file.swift"
+        field.placeholderString = title == "New Folder" ? "src/components" : (title == "Rename File" ? "src/renamed-file.swift" : "src/new-file.swift")
         alert.accessoryView = field
         guard alert.runModal() == .alertFirstButtonReturn else { return nil }
         let path = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -594,7 +663,7 @@ final class AppModel: ObservableObject {
             :root { --aistudio-page-background: \(background); --aistudio-text-color: \(foreground); --aistudio-content-width: \(Int(visualContentWidth))px; --aistudio-font-size: \(Int(visualFontSize))px; --aistudio-corner-radius: \(Int(visualCornerRadius))px; --aistudio-section-spacing: \(Int(visualSectionSpacing))px; }
             html, body { background: var(--aistudio-page-background) !important; color: var(--aistudio-text-color) !important; font-size: var(--aistudio-font-size) !important; }
             body { margin-left: auto; margin-right: auto; padding: 24px; box-sizing: border-box; }
-            \(selector) { max-width: var(--aistudio-content-width); font-size: var(--aistudio-font-size); border-radius: var(--aistudio-corner-radius); margin-block: var(--aistudio-section-spacing); }
+            \(selector) { background-color: var(--aistudio-page-background); color: var(--aistudio-text-color); max-width: var(--aistudio-content-width); font-size: var(--aistudio-font-size); border-radius: var(--aistudio-corner-radius); margin-block: var(--aistudio-section-spacing); }
             section, article, main { margin-block: var(--aistudio-section-spacing); }
             button, input, textarea, select { border-radius: var(--aistudio-corner-radius); }
             </style>
@@ -614,6 +683,7 @@ final class AppModel: ObservableObject {
             try Data(updated.utf8).write(to: htmlURL, options: .atomic)
             if selectedFileURL?.path == htmlURL.path {
                 fileContent = updated
+                savedFileContent = updated
                 fileIsDirty = false
             }
             previewRefreshID = UUID()
