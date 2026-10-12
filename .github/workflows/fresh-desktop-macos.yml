@@ -53,6 +53,8 @@ jobs:
           file ui/cat_icon.converted.png | grep -q 'PNG image'
           mv ui/cat_icon.converted.png ui/cat_icon.png
           file ui/cat_icon.png
+      - name: Validate desktop UI JavaScript syntax
+        run: node --check ui/app.js
       - name: Build macOS app bundle
         run: npm run build -- --bundles app
       - name: Ad-hoc sign and verify app bundle
