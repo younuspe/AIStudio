@@ -33,7 +33,7 @@
     "category": "DeveloperTool",
     "shortDescription": "Native AI app-building workspace",
     "icon": [
-      "../ui/cat_icon.png"
+      "../ui/AppIcon.icns"
     ]
   }
 }
