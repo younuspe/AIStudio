@@ -47,6 +47,16 @@ fi
 
 mkdir -p "$OUTPUT/Contents/MacOS" "$OUTPUT/Contents/Resources"
 install -m 755 "$BINARY" "$OUTPUT/Contents/MacOS/$APP_NAME"
+
+# Embed the existing Supru Stud app icon without altering the source image.
+ICON_SOURCE="$ROOT/assets/AppIcon.icns"
+if [[ -f "$ICON_SOURCE" ]]; then
+  install -m 644 "$ICON_SOURCE" "$OUTPUT/Contents/Resources/AppIcon.icns"
+else
+  curl --fail --location --silent --show-error --retry 3 --connect-timeout 15 \
+    "https://raw.githubusercontent.com/younuspe/Stud/2b5cdb9e7fb65283c5e79b211ca17abbddf465a5/public/AppIcon.icns" \
+    --output "$OUTPUT/Contents/Resources/AppIcon.icns"
+fi
 cat > "$OUTPUT/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -64,6 +74,8 @@ cat > "$OUTPUT/Contents/Info.plist" <<'PLIST'
     <string>Supru App Builder</string>
     <key>CFBundleDisplayName</key>
     <string>Supru App Builder</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleShortVersionString</key>
     <string>0.1.0</string>
     <key>CFBundleVersion</key>
