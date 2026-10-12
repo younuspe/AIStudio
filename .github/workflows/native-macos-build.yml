@@ -82,7 +82,7 @@ jobs:
       - name: Upload standalone app artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Supru-App-Builder-macOS-unsigned
+          name: Supru-App-Builder-macOS-ad-hoc-signed-not-notarized
           path: |
             dist/Supru-App-Builder-macos.zip
             dist/Supru-App-Builder-macos.zip.sha256
