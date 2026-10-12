@@ -38,6 +38,12 @@ cat > "$OUTPUT/Contents/Info.plist" <<'PLIST'
     <string>AIStudio</string>
     <key>CFBundleDisplayName</key>
     <string>AIStudio</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>LSMinimumSystemVersion</key>

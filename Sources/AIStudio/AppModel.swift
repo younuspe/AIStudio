@@ -106,6 +106,7 @@ final class AppModel: ObservableObject {
     @Published var isGeneratingProject = false
     @Published var visualBackgroundColor = "#ffffff"
     @Published var visualTextColor = "#171717"
+    @Published var visualTargetSelector = "body"
     @Published var visualContentWidth = 1120.0
     @Published var visualFontSize = 16.0
     @Published var visualCornerRadius = 12.0
@@ -581,11 +582,13 @@ final class AppModel: ObservableObject {
             let original = try String(contentsOf: htmlURL, encoding: .utf8)
             let background = Self.sanitizedHexColor(visualBackgroundColor, fallback: "#ffffff")
             let foreground = Self.sanitizedHexColor(visualTextColor, fallback: "#171717")
+            let selector = Self.sanitizedCSSSelector(visualTargetSelector)
             let styleBlock = """
             <style data-aistudio-visual-editor="true">
             :root { --aistudio-page-background: \(background); --aistudio-text-color: \(foreground); --aistudio-content-width: \(Int(visualContentWidth))px; --aistudio-font-size: \(Int(visualFontSize))px; --aistudio-corner-radius: \(Int(visualCornerRadius))px; --aistudio-section-spacing: \(Int(visualSectionSpacing))px; }
             html, body { background: var(--aistudio-page-background) !important; color: var(--aistudio-text-color) !important; font-size: var(--aistudio-font-size) !important; }
-            body { max-width: var(--aistudio-content-width); margin-left: auto; margin-right: auto; padding: 24px; box-sizing: border-box; }
+            body { margin-left: auto; margin-right: auto; padding: 24px; box-sizing: border-box; }
+            \(selector) { max-width: var(--aistudio-content-width); font-size: var(--aistudio-font-size); border-radius: var(--aistudio-corner-radius); margin-block: var(--aistudio-section-spacing); }
             section, article, main { margin-block: var(--aistudio-section-spacing); }
             button, input, textarea, select { border-radius: var(--aistudio-corner-radius); }
             </style>
@@ -614,6 +617,15 @@ final class AppModel: ObservableObject {
         } catch {
             lastError = "Could not save visual changes: \(error.localizedDescription)"
         }
+    }
+
+    private static func sanitizedCSSSelector(_ value: String) -> String {
+        let candidate = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let punctuation = CharacterSet(charactersIn: "_#.- >:*[]=\"'")
+        let allowed = CharacterSet.alphanumerics.union(punctuation)
+        guard !candidate.isEmpty, candidate.count <= 120,
+              candidate.unicodeScalars.allSatisfy({ allowed.contains($0) }) else { return "body" }
+        return candidate
     }
 
     private static func sanitizedHexColor(_ value: String, fallback: String) -> String {
