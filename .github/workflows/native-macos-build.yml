@@ -39,6 +39,8 @@ jobs:
           test -x "$APP_BUNDLE/Contents/MacOS/AIStudio"
           file "$APP_BUNDLE/Contents/MacOS/AIStudio"
           lipo "$APP_BUNDLE/Contents/MacOS/AIStudio" -verify_arch arm64 x86_64
+          test -s "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
+          codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
           /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$APP_BUNDLE/Contents/Info.plist" | grep -Fx 'Supru App Builder'
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_BUNDLE/Contents/Info.plist" | grep -Fx 'com.supru.appbuilder'
 
