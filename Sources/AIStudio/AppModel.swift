@@ -722,7 +722,7 @@ final class AppModel: ObservableObject {
         }
         let panel = NSSavePanel()
         panel.title = "Save generated image"
-        panel.nameFieldStringValue = "AIStudio-Generated.png"
+        panel.nameFieldStringValue = "Supru-App-Builder-Generated.png"
         panel.allowedContentTypes = [.png]
         panel.canCreateDirectories = true
         guard panel.runModal() == .OK, let url = panel.url else { return }
@@ -1754,7 +1754,7 @@ enum AIProviderClient {
         request.timeoutInterval = 180
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if !apiKey.isEmpty { request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization") }
-        if provider.id == "openrouter" { request.setValue("AIStudio", forHTTPHeaderField: "X-Title") }
+        if provider.id == "openrouter" { request.setValue("Supru App Builder", forHTTPHeaderField: "X-Title") }
         var body: [String: Any] = [
             "model": provider.model,
             "messages": messages.map { ["role": $0.role, "content": $0.content] },
