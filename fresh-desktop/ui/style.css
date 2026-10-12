@@ -44,3 +44,27 @@ textarea:focus-visible,input:focus-visible,select:focus-visible,button:focus-vis
 @media(max-width:900px){.rail{width:62px;flex-basis:62px;padding-left:7px;padding-right:7px}.brand{justify-content:center;padding-left:0;padding-right:0}.brand>span:last-child{display:none}.workspace{--builder-width:44%;grid-template-columns:minmax(270px,var(--builder-width)) 6px minmax(0,1fr)}.builder{padding:18px 12px 10px}.topbar{padding:0 12px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
 
+
+
+/* Supru App Builder polish: pure black surfaces, hot orange-red light, calm hierarchy */
+:root{color-scheme:dark;--supru-bg:#050505;--supru-panel:#0b0b0c;--supru-panel-raised:#111112;--supru-border:#29201f;--supru-text:#f5f2f1;--supru-muted:#a49b99;--supru-accent:#ff4b35;--supru-accent-soft:#26110f;background:#050505;color:#f5f2f1}
+html,body{background:#050505;color:#f5f2f1}
+.app{background:radial-gradient(ellipse at 78% 0%,rgba(255,64,42,.075),transparent 38%),#050505}
+.rail{background:linear-gradient(180deg,#0c0c0d 0%,#070707 100%);border-right-color:#261614}
+.brand{color:#fff5f2}.brand-icon{box-shadow:0 0 0 1px #ff5b451f,0 0 20px #ff45251f}
+.rail-action:hover,.rail-action.active{background:#21110f;color:#fff0ec}.rail-action.active{box-shadow:inset 2px 0 #ff4b35}
+.primary,.send{background:#ff4b35;color:#160705;border:1px solid #ff4b35;box-shadow:0 0 18px #ff45251a}
+.primary:hover,.send:hover{background:#ff654f;border-color:#ff654f}
+.eyebrow,.msg-label,.history-heading,.edit-target{color:#ff725f}
+.tool-chip.selected{color:#ffb2a6;background:#21110f;border-color:#4b211a}
+.welcome-icon,.browser-icon{background:#21110f;color:#ff654f;box-shadow:0 0 28px #ff45251a}
+.suggestions button:hover{border-color:#ff624d}
+.message.user{background:#1e100e;border-color:#48231d}
+.composer-wrap:focus-within{border-color:#ff624d;box-shadow:0 0 0 3px #ff4b3510}
+.attachment{background:#26120f;color:#ffb5a8}
+.workspace-splitter:hover,.workspace-splitter:focus{background:#ff4b35}
+.tab.active{color:#fff0ed;border-bottom-color:#ff4b35}
+.canvas{background:#050505}.preview{background:#090909}
+.history-item:hover{border-color:#ff624d;background:#1b100e}
+.toast.error{border-color:#ff624d}
+@media(prefers-reduced-motion:no-preference){.primary,.send,.rail-action,.suggestions button,.tab,.tool-chip{transition:background-color .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease}}
