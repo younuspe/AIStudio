@@ -1,0 +1,33 @@
+{
+  "productName": "AI Studio Desktop",
+  "version": "0.1.0",
+  "identifier": "com.aistudio.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "AI Studio Desktop",
+        "width": 1440,
+        "height": 960,
+        "minWidth": 900,
+        "minHeight": 650,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src ipc: http://ipc.localhost https://* http://127.0.0.1:* http://localhost:*; frame-src 'self' blob: data:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "dmg"
+    ],
+    "category": "DeveloperTool"
+  }
+}
