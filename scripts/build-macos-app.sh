@@ -57,6 +57,15 @@ else
     "https://raw.githubusercontent.com/younuspe/Stud/2b5cdb9e7fb65283c5e79b211ca17abbddf465a5/public/AppIcon.icns" \
     --output "$OUTPUT/Contents/Resources/AppIcon.icns"
 fi
+
+# Bundle the same original Supru cat image used by the README.
+SUPRU_IMAGE_SOURCE="$ROOT/assets/Supru.jpg"
+if [[ ! -s "$SUPRU_IMAGE_SOURCE" ]]; then
+  echo "Error: assets/Supru.jpg is missing or empty." >&2
+  exit 1
+fi
+install -m 644 "$SUPRU_IMAGE_SOURCE" "$OUTPUT/Contents/Resources/Supru.jpg"
+
 cat > "$OUTPUT/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
