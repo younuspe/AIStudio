@@ -1,7 +1,7 @@
 #[tauri::command]
 fn app_info() -> serde_json::Value {
     serde_json::json!({
-        "name": "AI Studio Desktop",
+        "name": "Supru App Builder",
         "mode": "fresh-build",
         "provider_protocol": "OpenAI-compatible"
     })
@@ -46,5 +46,5 @@ pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![app_info, provider_chat, provider_models])
         .run(tauri::generate_context!())
-        .expect("error while running AI Studio Desktop");
+        .expect("error while running Supru App Builder");
 }
