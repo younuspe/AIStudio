@@ -213,7 +213,7 @@ struct ChatWorkspace: View {
                         .buttonStyle(.plain)
                         .help("Attach source or text files as context")
 
-                        TextField(composerMode == .build ? "Describe the app you want to build…" : "Message AIStudio…",
+                        TextField(composerMode == .build ? "Describe the app you want to build…" : "Message Supru App Builder…",
                                   text: $model.inputText, axis: .vertical)
                             .lineLimit(1...5)
                             .textFieldStyle(.plain)
@@ -305,7 +305,7 @@ struct ChatWorkspace: View {
                             Image(systemName: "macwindow.on.rectangle")
                                 .font(.system(size: 34)).foregroundStyle(.secondary)
                             Text("Your app preview appears here").font(.headline)
-                            Text("Create an app in Build App mode, review its files, then run the local development server. The preview stays inside AIStudio beside your chat.")
+                            Text("Create an app in Build App mode, review its files, then run the local development server. The preview stays inside Supru App Builder beside your chat.")
                                 .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
                             Button { model.startProjectPreviewServer() } label: {
                                 Label("Start Local Preview", systemImage: "play.fill")
@@ -602,7 +602,7 @@ struct VisualEditorWorkspace: View {
                         Label(liveURL.absoluteString, systemImage: "network")
                             .font(.caption)
                             .textSelection(.enabled)
-                        Text("The page is served by the development command shown above. AIStudio's own interface remains native SwiftUI.")
+                        Text("The page is served by the development command shown above. Supru App Builder's own interface remains native SwiftUI.")
                             .font(.callout)
                             .foregroundStyle(.secondary)
                         Divider()
@@ -719,7 +719,7 @@ struct VisualEditorWorkspace: View {
                 ContentPlaceholder(
                     symbol: "rectangle.on.rectangle",
                     title: "Preview a local web project",
-                    message: "Open a project, select an HTML file in Projects, then return here and reload the preview. AIStudio's own interface remains native SwiftUI.",
+                    message: "Open a project, select an HTML file in Projects, then return here and reload the preview. Supru App Builder's own interface remains native SwiftUI.",
                     buttonTitle: "Open Project",
                     action: { model.openWorkspace() }
                 )
