@@ -34,16 +34,19 @@ jobs:
 
       - name: Validate app bundle metadata and executable
         run: |
-          plutil -lint dist/AIStudio.app/Contents/Info.plist
-          test -x dist/AIStudio.app/Contents/MacOS/AIStudio
-          file dist/AIStudio.app/Contents/MacOS/AIStudio
-          lipo dist/AIStudio.app/Contents/MacOS/AIStudio -verify_arch arm64 x86_64
+          APP_BUNDLE="dist/Supru App Builder.app"
+          plutil -lint "$APP_BUNDLE/Contents/Info.plist"
+          test -x "$APP_BUNDLE/Contents/MacOS/AIStudio"
+          file "$APP_BUNDLE/Contents/MacOS/AIStudio"
+          lipo "$APP_BUNDLE/Contents/MacOS/AIStudio" -verify_arch arm64 x86_64
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$APP_BUNDLE/Contents/Info.plist" | grep -Fx 'Supru App Builder'
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_BUNDLE/Contents/Info.plist" | grep -Fx 'com.supru.appbuilder'
 
       - name: Smoke-test native app launch
         run: |
           set -euo pipefail
-          APP_EXEC="$GITHUB_WORKSPACE/dist/AIStudio.app/Contents/MacOS/AIStudio"
-          LOG_FILE="$RUNNER_TEMP/aistudio-launch.log"
+          APP_EXEC="$GITHUB_WORKSPACE/dist/Supru App Builder.app/Contents/MacOS/AIStudio"
+          LOG_FILE="$RUNNER_TEMP/supru-app-builder-launch.log"
           "$APP_EXEC" > "$LOG_FILE" 2>&1 &
           APP_PID=$!
           cleanup() {
@@ -62,24 +65,24 @@ jobs:
               APP_STATUS=$?
               set -e
               cat "$LOG_FILE"
-              echo "AIStudio exited during its startup smoke test (exit $APP_STATUS)." >&2
+              echo "Supru App Builder exited during its startup smoke test (exit $APP_STATUS)." >&2
               exit 1
             fi
             sleep 1
           done
-          echo "AIStudio native process remained alive for the 8-second startup smoke test."
+          echo "Supru App Builder native process remained alive for the 8-second startup smoke test."
 
       - name: Create downloadable app archive
         run: |
-          ditto -c -k --sequesterRsrc --keepParent dist/AIStudio.app dist/AIStudio-macos.zip
-          shasum -a 256 dist/AIStudio-macos.zip > dist/AIStudio-macos.zip.sha256
+          ditto -c -k --sequesterRsrc --keepParent "dist/Supru App Builder.app" dist/Supru-App-Builder-macos.zip
+          shasum -a 256 dist/Supru-App-Builder-macos.zip > dist/Supru-App-Builder-macos.zip.sha256
 
       - name: Upload standalone app artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AIStudio-macOS-unsigned
+          name: Supru-App-Builder-macOS-unsigned
           path: |
-            dist/AIStudio-macos.zip
-            dist/AIStudio-macos.zip.sha256
+            dist/Supru-App-Builder-macos.zip
+            dist/Supru-App-Builder-macos.zip.sha256
           if-no-files-found: error
           retention-days: 14
