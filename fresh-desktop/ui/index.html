@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="dark">
-<title>AI Studio Desktop</title><link rel="stylesheet" href="style.css">
+<title>Supru App Builder</title><link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="app">
   <aside class="rail">
-    <div class="brand"><img class="brand-icon" src="cat_icon.png" alt="Supru cat"><span>AI Studio</span></div>
+    <div class="brand"><img class="brand-icon" src="cat_icon.png" alt="Supru cat"><span>Supru App Builder</span></div>
     <button class="rail-action active" data-view="build"><span>✳</span> Build</button>
     <button class="rail-action" data-view="history"><span>◷</span> History</button>
     <button class="rail-action" data-view="gallery"><span>▦</span> Gallery</button>
@@ -23,10 +23,10 @@
     </header>
     <div class="workspace">
       <section class="builder">
-        <div class="builder-head"><div><div class="eyebrow">APP BUILDER</div><h1>What will you build?</h1><p>Describe an idea and turn it into a working app.</p></div><button class="icon-btn" id="clearChat" title="New prompt">＋</button></div>
+        <div class="builder-head"><div><div class="eyebrow">SUPRU APP BUILDER</div><h1>What will you build?</h1><p>From a clear idea to a working app — build, inspect, and refine in one workspace.</p></div><button class="icon-btn" id="clearChat" title="New prompt">＋</button></div>
         <div class="session-tools"><button class="tool-chip selected" data-mode="Build">✦ Build</button><button class="tool-chip" data-mode="Ask">☷ Ask</button><button class="tool-chip" data-mode="Plan">⌁ Plan</button><span class="tool-spacer"></span><button class="icon-btn" id="attachBtn" title="Attach files">＋</button><input id="fileInput" type="file" multiple hidden></div>
         <div class="conversation" id="conversation"><div class="welcome"><div class="welcome-icon">✳</div><h2>Start with an idea</h2><p>Describe what you want to create. Your app and source code will appear in the workspace.</p><div class="suggestions"><button data-prompt="Build a modern task manager with projects, due dates, and a dark theme.">A task manager</button><button data-prompt="Create a beautiful personal portfolio with responsive layout and project cards.">A portfolio website</button><button data-prompt="Build a dashboard with charts, metrics, and a searchable data table.">An analytics dashboard</button></div></div></div>
-        <div class="composer-wrap"><div id="attachments" class="attachments"></div><textarea id="prompt" rows="3" placeholder="Describe your app, change a feature, or ask a question…"></textarea><div class="composer-bottom"><div class="model-controls"><span class="status-dot"></span><select id="provider"><option value="openai">OpenAI-compatible</option><option value="ollama">Ollama (local)</option></select><input id="model" value="gpt-4o-mini" aria-label="Model name"><button class="icon-btn" id="configBtn" title="Provider settings">⚙</button></div><button class="send" id="sendBtn">Run ↗</button></div></div>
+        <div class="composer-wrap"><div id="attachments" class="attachments"></div><textarea id="prompt" rows="3" placeholder="Describe your app, refine a feature, or ask a question…"></textarea><div class="composer-bottom"><div class="model-controls"><span class="status-dot"></span><select id="provider"><option value="openai">OpenAI-compatible</option><option value="ollama">Ollama (local)</option></select><input id="model" value="gpt-4o-mini" aria-label="Model name"><button class="icon-btn" id="configBtn" title="Provider settings">⚙</button></div><button class="send" id="sendBtn">Meow! ↗</button></div></div>
         <div class="footnote">AI can make mistakes. Review generated code before using it.</div>
       </section>
       <div class="workspace-splitter" id="workspaceSplitter" role="separator" aria-orientation="vertical" aria-label="Resize builder and preview" tabindex="0"></div>\n      <section class="preview">
