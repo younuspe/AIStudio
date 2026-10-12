@@ -35,6 +35,23 @@ jobs:
           file src-tauri/icons/SupruStud-AppIcon.icns src-tauri/icons/icon.png
       - name: Build macOS desktop app and DMG
         run: npm run tauri build
+      - name: Verify app signature inside the DMG
+        shell: bash
+        run: |
+          set -euo pipefail
+          DMG="$(find src-tauri/target/release/bundle/dmg -maxdepth 1 -name '*.dmg' -print -quit)"
+          test -n "$DMG"
+          MOUNT_POINT="$(mktemp -d /tmp/aistudio-dmg.XXXXXX)"
+          cleanup() {
+            hdiutil detach "$MOUNT_POINT" -quiet || true
+            rmdir "$MOUNT_POINT" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          hdiutil attach "$DMG" -readonly -nobrowse -mountpoint "$MOUNT_POINT" -quiet
+          APP="$(find "$MOUNT_POINT" -maxdepth 2 -name '*.app' -print -quit)"
+          test -n "$APP"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          codesign -dv --verbose=2 "$APP" 2>&1
       - name: Upload single Apple Silicon DMG
         uses: actions/upload-artifact@v4
         with:
