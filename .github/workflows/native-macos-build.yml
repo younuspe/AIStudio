@@ -113,11 +113,29 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent "dist/Supru App Builder.app" dist/Supru-App-Builder-macos.zip
           shasum -a 256 dist/Supru-App-Builder-macos.zip > dist/Supru-App-Builder-macos.zip.sha256
 
-      - name: Upload standalone app artifact
+      - name: Create drag-to-Applications DMG installer
+        run: |
+          set -euo pipefail
+          STAGING="$RUNNER_TEMP/supru-dmg-staging"
+          rm -rf "$STAGING"
+          mkdir -p "$STAGING"
+          ditto "dist/Supru App Builder.app" "$STAGING/Supru App Builder.app"
+          ln -s /Applications "$STAGING/Applications"
+          hdiutil create \
+            -volname "Supru App Builder" \
+            -srcfolder "$STAGING" \
+            -ov \
+            -format UDZO \
+            "dist/Supru-App-Builder-macos.dmg"
+          shasum -a 256 "dist/Supru-App-Builder-macos.dmg" > "dist/Supru-App-Builder-macos.dmg.sha256"
+
+      - name: Upload installable macOS packages
         uses: actions/upload-artifact@v4
         with:
-          name: Supru-App-Builder-macOS-ad-hoc-signed-not-notarized
+          name: Supru-App-Builder-macOS-installer-ad-hoc-signed-not-notarized
           path: |
+            dist/Supru-App-Builder-macos.dmg
+            dist/Supru-App-Builder-macos.dmg.sha256
             dist/Supru-App-Builder-macos.zip
             dist/Supru-App-Builder-macos.zip.sha256
           if-no-files-found: error
