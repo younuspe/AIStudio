@@ -28,9 +28,11 @@ jobs:
           curl --fail --location --retry 3 \
             https://raw.githubusercontent.com/younuspe/Stud/main/public/AppIcon.icns \
             --output src-tauri/icons/SupruStud-AppIcon.icns
-          sips -s format png -z 1024 1024 src-tauri/icons/SupruStud-AppIcon.icns --out src-tauri/icons/icon.png
+          sips -s format png -z 1024 1024 src-tauri/icons/SupruStud-AppIcon.icns --out /tmp/supru-stud-icon-source.png
+          python3 -m venv /tmp/icon-venv
+          /tmp/icon-venv/bin/python -m pip install --disable-pip-version-check Pillow
+          /tmp/icon-venv/bin/python -c 'from pathlib import Path; from PIL import Image; src=Image.open("/tmp/supru-stud-icon-source.png"); src.load(); out=src.convert("RGBA").resize((1024,1024), Image.Resampling.LANCZOS); out.save("src-tauri/icons/icon.png", format="PNG", optimize=True); check=Image.open("src-tauri/icons/icon.png"); assert check.mode=="RGBA" and check.size==(1024,1024), f"Wrong icon format: {check.mode} {check.size}"; icns=Path("src-tauri/icons/SupruStud-AppIcon.icns").read_bytes(); png=Path("src-tauri/icons/icon.png").read_bytes(); assert icns.startswith(b"icns") and png.startswith(bytes.fromhex("89504e470d0a1a0a")); print(f"Verified Supru Stud icon: ICNS {len(icns)} bytes; PNG {check.mode} {check.size}, {len(png)} bytes")'
           file src-tauri/icons/SupruStud-AppIcon.icns src-tauri/icons/icon.png
-          python3 -c 'from pathlib import Path; icns=Path("src-tauri/icons/SupruStud-AppIcon.icns").read_bytes(); png=Path("src-tauri/icons/icon.png").read_bytes(); assert icns.startswith(b"icns"), "Invalid Supru Stud ICNS"; assert png.startswith(bytes.fromhex("89504e470d0a1a0a")), "Invalid generated PNG"; print("Verified matching Supru Stud ICNS and PNG icons")'
       - name: Build macOS desktop app and DMG
         run: npm run tauri build
       - name: Upload single Apple Silicon DMG
