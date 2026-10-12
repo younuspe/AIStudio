@@ -317,22 +317,87 @@ struct VisualEditorWorkspace: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Visual Editor & Preview").font(.headline)
-                    Text("Native controls around a preview of your own local HTML project.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Visual Editor & Preview").font(.headline)
+                        Text("Preview static HTML or run the selected web project's local dev server.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("Open Project…") { model.openWorkspace() }
+                    Button { model.refreshPreview() } label: { Label("Reload", systemImage: "arrow.clockwise") }
+                        .disabled(model.workspaceURL == nil)
                 }
-                Spacer()
-                Button("Open Project…") { model.openWorkspace() }
-                Button { model.refreshPreview() } label: { Label("Reload Preview", systemImage: "arrow.clockwise") }
-                    .disabled(model.workspaceURL == nil)
+                HStack(spacing: 8) {
+                    TextField("Preview command", text: $model.previewServerCommand)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(.caption, design: .monospaced))
+                        .help("Use the project's dev command and bind it to 127.0.0.1. Commands execute as your macOS user.")
+                    TextField("http://127.0.0.1:5173", text: $model.previewServerURLText)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: 220)
+                        .font(.system(.caption, design: .monospaced))
+                    if model.isStartingPreviewServer {
+                        ProgressView().controlSize(.small)
+                        Button("Starting…") { model.stopProjectPreviewServer() }
+                    } else if model.isPreviewServerRunning {
+                        Button { model.stopProjectPreviewServer() } label: {
+                            Label("Stop Server", systemImage: "stop.fill")
+                        }
+                    } else {
+                        Button { model.startProjectPreviewServer() } label: {
+                            Label("Run Preview", systemImage: "play.fill")
+                        }
+                        .disabled(model.workspaceURL == nil)
+                    }
+                }
+                if model.isPreviewServerRunning || !model.previewServerLog.isEmpty {
+                    HStack {
+                        Image(systemName: model.isPreviewServerRunning ? "circle.fill" : "terminal")
+                            .foregroundStyle(model.isPreviewServerRunning ? Color.green : Color.secondary)
+                            .font(.system(size: 8))
+                        Text(model.isPreviewServerRunning
+                             ? (model.previewServerURL?.absoluteString ?? "Local preview server starting…")
+                             : "Previous preview server log available")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Show Log") {
+                            model.consoleOutput = model.previewServerLog
+                            model.selectedSection = .developerTools
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
             }
             .padding(12)
             Divider()
 
-            if let url = model.previewFileURL, let accessRoot = model.workspaceURL {
+            if let liveURL = model.previewServerURL {
+                HSplitView {
+                    LocalURLPreview(url: liveURL, refreshID: model.previewRefreshID)
+                        .frame(minWidth: 420, minHeight: 400)
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Live project preview").font(.headline)
+                        Label(liveURL.absoluteString, systemImage: "network")
+                            .font(.caption)
+                            .textSelection(.enabled)
+                        Text("The page is served by the development command shown above. AIStudio's own interface remains native SwiftUI.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        Divider()
+                        Text("Editing").font(.headline)
+                        Text("Edit source and CSS in Projects, save your changes, then reload the preview. Most Vite and similar servers also support hot reload.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        Button("Open Projects") { model.selectedSection = .projects }
+                    }
+                    .padding(16)
+                    .frame(minWidth: 220, maxWidth: 300, alignment: .topLeading)
+                }
+            } else if let url = model.previewFileURL, let accessRoot = model.workspaceURL {
                 HSplitView {
                     LocalHTMLPreview(fileURL: url, accessRoot: accessRoot, refreshID: model.previewRefreshID)
                         .frame(minWidth: 420, minHeight: 400)
@@ -491,6 +556,53 @@ struct DeveloperToolsWorkspace: View {
             model.runCommand()
         }
         .disabled(model.isRunningCommand)
+    }
+}
+
+private struct LocalURLPreview: NSViewRepresentable {
+    let url: URL
+    let refreshID: UUID
+
+    func makeNSView(context: Context) -> WKWebView {
+        let view = WKWebView()
+        view.navigationDelegate = context.coordinator
+        view.load(URLRequest(url: url))
+        return view
+    }
+
+    func updateNSView(_ view: WKWebView, context: Context) {
+        if context.coordinator.lastRefreshID != refreshID || context.coordinator.lastURL != url {
+            context.coordinator.lastRefreshID = refreshID
+            context.coordinator.lastURL = url
+            view.load(URLRequest(url: url))
+        }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        var lastRefreshID = UUID()
+        var lastURL: URL?
+
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            guard navigationAction.targetFrame?.isMainFrame == true,
+                  let target = navigationAction.request.url,
+                  let host = target.host?.lowercased() else {
+                decisionHandler(.allow)
+                return
+            }
+            if target.scheme?.lowercased() == "http",
+               !["127.0.0.1", "localhost", "::1"].contains(host) {
+                decisionHandler(.cancel)
+                return
+            }
+            if ["https", "file", "javascript"].contains(target.scheme?.lowercased() ?? "") {
+                decisionHandler(.cancel)
+                return
+            }
+            decisionHandler(.allow)
+        }
     }
 }
 

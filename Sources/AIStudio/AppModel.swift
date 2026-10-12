@@ -1,3 +1,4 @@
+import UniformTypeIdentifiers
 import AppKit
 import Combine
 import Foundation
@@ -113,6 +114,19 @@ final class AppModel: ObservableObject {
     private var savedFileContent = ""
     @Published var previewFileURL: URL?
     @Published var previewRefreshID = UUID()
+    @Published var previewServerCommand = "npm run dev -- --host 127.0.0.1 --port 5173 --strictPort"
+    @Published var previewServerURLText = "http://127.0.0.1:5173"
+    @Published var previewServerURL: URL?
+    @Published var isStartingPreviewServer = false
+    @Published var isPreviewServerRunning = false
+    @Published var previewServerLog = ""
+
+    @Published var imagePrompt = ""
+    @Published var imageModelID = "gpt-image-1"
+    @Published var imageSize = "1024x1024"
+    @Published var imageSourceURL: URL?
+    @Published var generatedImageData: Data?
+    @Published var isGeneratingImage = false
 
     @Published var projectPrompt = ""
     @Published var isGeneratingProject = false
@@ -130,6 +144,8 @@ final class AppModel: ObservableObject {
     @Published var lastError: String?
 
     private let fileManager = FileManager.default
+    private var previewServerProcess: Process?
+    private var previewServerLogHandle: FileHandle?
     private var stateURL: URL { Self.supportDirectory.appendingPathComponent("state.json") }
 
     static var supportDirectory: URL {
@@ -630,6 +646,91 @@ final class AppModel: ObservableObject {
         providerModel = modelID
     }
 
+    func chooseImageSource() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose an image to edit"
+        panel.message = "Choose a local image file. Its contents will be sent to the selected provider's image-edit endpoint."
+        panel.allowedContentTypes = [.image]
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK else { return }
+        imageSourceURL = panel.url
+        generatedImageData = nil
+        lastError = nil
+    }
+
+    func clearImageSource() {
+        imageSourceURL = nil
+    }
+
+    func generateImage() {
+        let prompt = imagePrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !prompt.isEmpty, !isGeneratingImage else {
+            if prompt.isEmpty { lastError = "Enter a prompt before generating an image." }
+            return
+        }
+        let modelID = imageModelID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !modelID.isEmpty else {
+            lastError = "Enter an image model ID supported by your selected provider."
+            return
+        }
+        let provider = activeProvider
+        let key = KeychainStore.read(account: provider.keychainAccount) ?? ""
+        let source = imageSourceURL
+        let size = imageSize
+        isGeneratingImage = true
+        generatedImageData = nil
+        lastError = nil
+        statusMessage = source == nil ? "Requesting image generation from \(provider.name)…" : "Requesting an edit of \(source!.lastPathComponent)…"
+
+        Task {
+            do {
+                let data = try await AIProviderClient.generateImage(
+                    provider: provider,
+                    apiKey: key,
+                    modelID: modelID,
+                    prompt: prompt,
+                    size: size,
+                    sourceImageURL: source
+                )
+                guard NSImage(data: data) != nil else {
+                    throw ProviderError.invalidImageResponse
+                }
+                generatedImageData = data
+                isGeneratingImage = false
+                selectedSection = .generativeStudio
+                statusMessage = source == nil ? "Image generated. Save a copy to disk when ready." : "Image edit generated. Save a copy to disk when ready."
+            } catch {
+                isGeneratingImage = false
+                lastError = "Image request failed: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    func saveGeneratedImage() {
+        guard let data = generatedImageData, let image = NSImage(data: data),
+              let tiffData = image.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiffData),
+              let pngData = bitmap.representation(using: .png, properties: [:]) else {
+            lastError = "The generated image could not be converted to PNG."
+            return
+        }
+        let panel = NSSavePanel()
+        panel.title = "Save generated image"
+        panel.nameFieldStringValue = "AIStudio-Generated.png"
+        panel.allowedContentTypes = [.png]
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try pngData.write(to: url, options: .atomic)
+            statusMessage = "Saved image to \(url.path)"
+            lastError = nil
+        } catch {
+            lastError = "Could not save image: \(error.localizedDescription)"
+        }
+    }
+
     func generateProject() {
         guard let root = workspaceURL else {
             lastError = "Open a project folder first, then generate into that folder."
@@ -832,8 +933,15 @@ final class AppModel: ObservableObject {
     }
 
     func refreshPreview() {
+        if isPreviewServerRunning, previewServerURL != nil {
+            previewRefreshID = UUID()
+            lastError = nil
+            statusMessage = "Reloading live project preview."
+            selectedSection = .visualEditor
+            return
+        }
         guard let root = workspaceURL else {
-            lastError = "Open a project folder to preview its web output."
+            lastError = "Open a project folder to preview its output."
             return
         }
         if let selectedFileURL, selectedFileURL.pathExtension.lowercased() == "html" {
@@ -844,12 +952,144 @@ final class AppModel: ObservableObject {
                 .first(where: { fileManager.fileExists(atPath: $0.path) })
         }
         guard previewFileURL != nil else {
-            lastError = "No HTML file was found. Select an HTML file in Projects first."
+            lastError = "No static HTML file was found. Start the project's development server below to preview a React/Vite app."
             return
         }
         previewRefreshID = UUID()
         lastError = nil
         selectedSection = .visualEditor
+    }
+
+    func startProjectPreviewServer() {
+        guard let root = workspaceURL else {
+            lastError = "Open a project folder before starting its preview server."
+            return
+        }
+        guard previewServerProcess?.isRunning != true else {
+            statusMessage = "The project preview server is already running."
+            return
+        }
+
+        let command = previewServerCommand.trimmingCharacters(in: .whitespacesAndNewlines)
+        let urlText = previewServerURLText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !command.isEmpty,
+              let url = URL(string: urlText),
+              url.scheme?.lowercased() == "http",
+              let host = url.host?.lowercased(),
+              ["127.0.0.1", "localhost", "::1"].contains(host),
+              let port = url.port, (1...65535).contains(port) else {
+            lastError = "Use a command and a loopback preview URL such as http://127.0.0.1:5173."
+            return
+        }
+
+        do {
+            let logURL = Self.supportDirectory.appendingPathComponent("project-preview.log")
+            try fileManager.createDirectory(at: Self.supportDirectory, withIntermediateDirectories: true)
+            try Data().write(to: logURL, options: .atomic)
+            let logHandle = try FileHandle(forWritingTo: logURL)
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+            process.arguments = ["-lc", "exec " + command]
+            process.currentDirectoryURL = root
+            var environment = ProcessInfo.processInfo.environment
+            let inheritedPath = environment["PATH"] ?? ""
+            let commonPaths = "/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin"
+            environment["PATH"] = commonPaths + (inheritedPath.isEmpty ? "" : ":" + inheritedPath)
+            environment["HOST"] = "127.0.0.1"
+            environment["PORT"] = String(port)
+            environment["BROWSER"] = "none"
+            environment["TERM"] = "xterm-256color"
+            process.environment = environment
+            process.standardOutput = logHandle
+            process.standardError = logHandle
+
+            process.terminationHandler = { [weak self] child in
+                DispatchQueue.main.async {
+                    guard let self,
+                          self.previewServerProcess?.processIdentifier == child.processIdentifier else { return }
+                    self.isPreviewServerRunning = false
+                    self.isStartingPreviewServer = false
+                    self.previewServerURL = nil
+                    self.previewServerLog = (try? String(contentsOf: logURL, encoding: .utf8)) ?? "Preview server exited."
+                    self.previewServerProcess = nil
+                    self.previewServerLogHandle = nil
+                    if child.terminationStatus != 0 {
+                        self.lastError = "Preview server exited with status \(child.terminationStatus). Review its log."
+                    }
+                }
+            }
+
+            try process.run()
+            previewServerLogHandle = logHandle
+            previewServerProcess = process
+            previewServerURL = nil
+            isPreviewServerRunning = true
+            isStartingPreviewServer = true
+            lastError = nil
+            previewServerLog = "Starting: \(command)\nProject folder: \(root.path)\nPreview URL: \(url.absoluteString)\n"
+            statusMessage = "Starting the project's preview server…"
+
+            Task {
+                let deadline = Date().addingTimeInterval(25)
+                while Date() < deadline,
+                      self.previewServerProcess?.processIdentifier == process.processIdentifier,
+                      process.isRunning {
+                    do {
+                        var request = URLRequest(url: url)
+                        request.timeoutInterval = 1.5
+                        let (_, response) = try await URLSession.shared.data(for: request)
+                        if response is HTTPURLResponse {
+                            self.previewServerURL = url
+                            self.isStartingPreviewServer = false
+                            self.previewRefreshID = UUID()
+                            self.lastError = nil
+                            self.statusMessage = "Live project preview is ready at \(url.absoluteString)."
+                            self.selectedSection = .visualEditor
+                            return
+                        }
+                    } catch {
+                        // Allow time for the framework to compile and begin listening.
+                    }
+                    try? await Task.sleep(nanoseconds: 400_000_000)
+                }
+
+                self.isStartingPreviewServer = false
+                guard self.previewServerProcess?.processIdentifier == process.processIdentifier else { return }
+                self.previewServerLog = (try? String(contentsOf: logURL, encoding: .utf8)) ?? self.previewServerLog
+                if process.isRunning {
+                    self.lastError = "The preview server is running but did not respond within 25 seconds. Check its URL, command, and log."
+                } else if self.lastError == nil {
+                    self.lastError = "The preview server exited before it became ready. Check its log."
+                }
+            }
+        } catch {
+            isStartingPreviewServer = false
+            isPreviewServerRunning = false
+            lastError = "Could not start the project preview server: \(error.localizedDescription)"
+        }
+    }
+
+    func stopProjectPreviewServer() {
+        guard let process = previewServerProcess else {
+            isPreviewServerRunning = false
+            isStartingPreviewServer = false
+            previewServerURL = nil
+            return
+        }
+        process.terminationHandler = nil
+        if process.isRunning {
+            process.terminate()
+            DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
+                if process.isRunning { process.interrupt() }
+            }
+        }
+        previewServerProcess = nil
+        previewServerLogHandle = nil
+        isPreviewServerRunning = false
+        isStartingPreviewServer = false
+        previewServerURL = nil
+        previewServerLog = (try? String(contentsOf: Self.supportDirectory.appendingPathComponent("project-preview.log"), encoding: .utf8)) ?? previewServerLog
+        statusMessage = "Stopped the project preview server."
     }
 
     func applyVisualSettings() {
@@ -1088,6 +1328,103 @@ private enum AIProviderClient {
         let choices: [Choice]
     }
 
+    private struct ImageResponse: Decodable {
+        struct Item: Decodable {
+            let b64_json: String?
+            let url: String?
+        }
+        let data: [Item]
+    }
+
+    static func generateImage(
+        provider: ProviderConfiguration,
+        apiKey: String,
+        modelID: String,
+        prompt: String,
+        size: String,
+        sourceImageURL: URL?
+    ) async throws -> Data {
+        guard let endpoint = endpoint(
+            baseURL: provider.baseURL,
+            suffix: sourceImageURL == nil ? "/images/generations" : "/images/edits"
+        ) else {
+            throw ProviderError.invalidURL(provider.baseURL)
+        }
+
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 240
+        if !apiKey.isEmpty { request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization") }
+
+        if let sourceImageURL {
+            let sourceData = try Data(contentsOf: sourceImageURL)
+            guard !sourceData.isEmpty, sourceData.count <= 20_000_000 else {
+                throw ProviderError.imageInputTooLarge
+            }
+            let boundary = "AIStudio-\(UUID().uuidString)"
+            request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+            var body = Data()
+            func appendField(_ name: String, _ value: String) {
+                body.append(Data("--\(boundary)\r\n".utf8))
+                body.append(Data("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n".utf8))
+                body.append(Data(value.utf8))
+                body.append(Data("\r\n".utf8))
+            }
+            appendField("model", modelID)
+            appendField("prompt", prompt)
+            appendField("size", size)
+            let ext = sourceImageURL.pathExtension.lowercased()
+            let mimeType = ext == "jpg" || ext == "jpeg" ? "image/jpeg"
+                : ext == "webp" ? "image/webp"
+                : ext == "heic" ? "image/heic"
+                : "image/png"
+            body.append(Data("--\(boundary)\r\n".utf8))
+            body.append(Data("Content-Disposition: form-data; name=\"image\"; filename=\"\(sourceImageURL.lastPathComponent)\"\r\n".utf8))
+            body.append(Data("Content-Type: \(mimeType)\r\n\r\n".utf8))
+            body.append(sourceData)
+            body.append(Data("\r\n--\(boundary)--\r\n".utf8))
+            request.httpBody = body
+        } else {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONSerialization.data(withJSONObject: [
+                "model": modelID,
+                "prompt": prompt,
+                "n": 1,
+                "size": size
+            ])
+        }
+
+        let (responseData, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw ProviderError.invalidResponse }
+        guard (200...299).contains(http.statusCode) else {
+            throw ProviderError.httpStatus(http.statusCode, Self.errorDetail(from: responseData))
+        }
+        guard let decoded = try? JSONDecoder().decode(ImageResponse.self, from: responseData),
+              let first = decoded.data.first else {
+            throw ProviderError.invalidImageResponse
+        }
+
+        if let encoded = first.b64_json, let data = Data(base64Encoded: encoded), !data.isEmpty {
+            guard data.count <= 30_000_000 else { throw ProviderError.imageOutputTooLarge }
+            return data
+        }
+        if let value = first.url, let url = URL(string: value),
+           url.scheme?.lowercased() == "https", url.host != nil {
+            var imageRequest = URLRequest(url: url)
+            imageRequest.timeoutInterval = 60
+            let (data, imageResponse) = try await URLSession.shared.data(for: imageRequest)
+            guard let imageHTTP = imageResponse as? HTTPURLResponse,
+                  (200...299).contains(imageHTTP.statusCode),
+                  data.count <= 30_000_000,
+                  imageHTTP.mimeType?.lowercased().hasPrefix("image/") == true,
+                  NSImage(data: data) != nil else {
+                throw ProviderError.invalidImageResponse
+            }
+            return data
+        }
+        throw ProviderError.invalidImageResponse
+    }
+
     static func complete(provider: ProviderConfiguration, apiKey: String, messages: [ChatMessage]) async throws -> String {
         guard let url = endpoint(baseURL: provider.baseURL, suffix: "/chat/completions") else {
             throw ProviderError.invalidURL(provider.baseURL)
@@ -1159,6 +1496,9 @@ private enum ProviderError: LocalizedError {
     case missingModel
     case invalidResponse
     case emptyResponse
+    case invalidImageResponse
+    case imageInputTooLarge
+    case imageOutputTooLarge
     case httpStatus(Int, String)
 
     var errorDescription: String? {
@@ -1167,6 +1507,9 @@ private enum ProviderError: LocalizedError {
         case .missingModel: return "Choose a model ID in Providers & Settings first."
         case .invalidResponse: return "The provider returned an invalid HTTP response."
         case .emptyResponse: return "The provider response did not contain assistant text."
+        case .invalidImageResponse: return "The provider response did not contain a supported image. This endpoint must return data[].b64_json or a secure HTTPS image URL."
+        case .imageInputTooLarge: return "The input image is empty or larger than 20 MB."
+        case .imageOutputTooLarge: return "The returned image is larger than the 30 MB safety limit."
         case .httpStatus(let status, let detail): return "Provider returned HTTP \(status): \(detail)"
         }
     }

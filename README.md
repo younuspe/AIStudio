@@ -1,69 +1,67 @@
 # AIStudio — Native macOS Desktop App
 
-AIStudio is being rebuilt as a standalone macOS application using **SwiftUI and AppKit**. Its own interface is native; it does not wrap a website, start Next.js, or require a browser.
+AIStudio is being rebuilt as a standalone macOS application using SwiftUI and AppKit. Its own interface is native; it does not wrap a website, start Next.js, or require a browser.
 
 ## Current native foundation
 
-- Native macOS app window, sidebar, menus, and keyboard shortcuts.
-- Chat UI with conversation history persisted locally.
-- Ollama local-model endpoint plus configurable NVIDIA, OpenRouter, and generic OpenAI-compatible endpoints.
-- Model catalog fetch through OpenAI-compatible \`/models\` endpoints.
-- API keys stored in macOS Keychain, not in the app's JSON state file.
-- Project folder picker and local file browser.
-- Attach up to eight source/text files to a chat message; file contents are size-limited and sent only to the provider selected in the app.
-- Create files and folders, rename or delete files with confirmation, edit UTF-8 text files, and save changes directly to disk.
-- Multi-stage model-driven project generation: plan the file tree first, generate up to 24 files in batches of three, validate paths and duplicate names, confirm overwrites, and roll back previously written files if a write fails.
-- Developer console for explicit user-entered commands, with output and exit-code capture. Commands run as the current macOS user, so review commands before execution.
-- Local HTML preview for a project you open. WebKit is used only as the project preview; AIStudio's own UI remains native.
+- Native macOS window, sidebar, menus, and keyboard shortcuts.
+- Chat with conversation history saved locally.
+- Local Ollama support plus configurable NVIDIA, OpenRouter, OpenAI, and generic OpenAI-compatible endpoints.
+- Provider model catalog lookup and free-tier filtering for model IDs ending in :free when the provider reports those IDs.
+- API keys stored in macOS Keychain, not in the application state JSON.
+- Open a local project folder, browse files, create folders and files, rename/delete files, edit UTF-8 text, and save changes.
+- Attach up to eight source/text files to a chat message, with per-file and total context limits.
+- Generate a project in stages: plan the file tree, generate up to 24 files in batches of three, validate paths and duplicates, ask before overwrite, and roll back successfully written targets if a later write fails.
+- Native Generative Studio for prompt-to-image and source-image edits through compatible image endpoints, then save the result as a local PNG.
+- Visual property controls that write CSS into a static HTML file.
+- Live preview of static HTML or a project dev server configured to listen on loopback.
+- Developer console for commands the user explicitly enters and runs.
 - No sign-in or password gate.
 
-This is the first implementation milestone, not a claim that every planned editor capability is finished. It still needs an actual macOS build and live testing before it can be called release-ready.
+## Important limitations
 
-## Requirements
+This is the native desktop foundation, not a claim that every planned advanced editing feature is complete. The project editor is a text editor; full Photoshop/Figma-grade semantic editing, unrestricted cross-format document editing, and a full multi-agent orchestration engine are not yet implemented in this native rewrite.
 
-- macOS 13 or later
-- Xcode Command Line Tools (Swift toolchain)
-- An AI provider, or a local Ollama installation and downloaded model, for AI features
+Image generation/editing requires the selected provider to implement OpenAI-compatible /images/generations or /images/edits routes. A provider's free chat models do not imply that image calls are free. AIStudio will show provider errors instead of reporting simulated artwork as a successful result.
 
-## Build a standalone \`.app\`
+## Build a standalone macOS app
+
+Requirements: macOS 13 or later and the Swift toolchain/Xcode Command Line Tools.
 
 From the repository root on a Mac:
 
-\`\`\`bash
-chmod +x scripts/build-macos-app.sh
-./scripts/build-macos-app.sh
-open dist/AIStudio.app
-\`\`\`
+    chmod +x scripts/build-macos-app.sh
+    ./scripts/build-macos-app.sh
+    open dist/AIStudio.app
 
-The script compiles the Swift package and packages it as \`dist/AIStudio.app\`. The app does not need a Node.js development server. This unsigned build may require macOS to be told to open it, and it is not code-signed or notarized.
+The build script compiles the Swift package and creates dist/AIStudio.app. AIStudio's own UI does not require a Node.js development server. The build is unsigned and not notarized, so macOS may require a user-approved first launch.
 
 To choose another output location:
 
-\`\`\`bash
-./scripts/build-macos-app.sh "$HOME/Applications/AIStudio.app"
-\`\`\`
+    ./scripts/build-macos-app.sh "$HOME/Applications/AIStudio.app"
 
-## Providers
+## Provider setup
 
-Open **Providers & Settings** inside the app:
+Open Providers & Settings inside the app.
 
-- **Ollama:** base URL defaults to \`http://127.0.0.1:11434/v1\`. Choose a model already installed locally.
-- **OpenRouter:** base URL defaults to \`https://openrouter.ai/api/v1\`. Add your key and fetch the catalog. Some provider listings may offer free-tier models; availability, rate limits, and pricing can change.
-- **NVIDIA API:** base URL defaults to \`https://integrate.api.nvidia.com/v1\`. Add your key and choose a model supported by your account.
-- **OpenAI-compatible:** configure any service exposing the compatible \`/v1/chat/completions\` and \`/v1/models\` endpoints. Custom local and remote endpoints are supported.
+- Ollama: the default endpoint is http://127.0.0.1:11434/v1. Select a model already installed locally.
+- OpenRouter: the default endpoint is https://openrouter.ai/api/v1. Add your key and fetch its model list. Some model IDs may end in :free; availability and limits can change.
+- NVIDIA: the default endpoint is https://integrate.api.nvidia.com/v1. Add your key and select a model available to your account.
+- OpenAI-compatible: configure any service that implements /v1/chat/completions and /v1/models. Custom local and remote endpoints are supported.
 
-AIStudio does not promise every model is free. The provider determines which models the account can access and what limits apply.
+A provider's pricing, free quota, model access, and endpoint compatibility are determined by that provider, not AIStudio.
 
-## Local project data
+## Local data
 
-- Provider settings and chat history: \`~/Library/Application Support/AIStudio/state.json\`
-- API keys: macOS Keychain service \`com.aistudio.desktop.providers\`
+- Provider settings and chat history: ~/Library/Application Support/AIStudio/state.json
+- API keys: macOS Keychain service com.aistudio.desktop.providers
 - Project files: saved directly to the directory you select
+- Preview server logs: ~/Library/Application Support/AIStudio/project-preview.log
 
-## Important security notes
+Review generated code and shell commands before executing them. Chat attachments and project prompts may contain private material; remote providers receive the contents sent with your request.
 
-AIStudio sends prompts and included project instructions to the provider you select. Do not send confidential material to a remote provider unless its terms and privacy rules are acceptable. The project generator validates relative file paths and asks before replacing existing files; review generated code before running it.
+## Workflow isolation and status
 
-## Development status
+All current desktop work is on the separate branch named desktop-productization in the AIStudio fork repository. The GitHub Actions build is configured only for pushes to that branch or a manual dispatch. It does not run for pull requests, and no pull request is created automatically. Commits made to this branch update the fork's branch only; they do not update the parent repository's public branch.
 
-This branch replaces the web application tree with a Swift package and an unsigned app-bundle build script. It has not yet been compiled or run on a Mac in this environment. The optional GitHub Actions workflow at `.github/workflows/native-macos-build.yml` has **workflow_dispatch only**; pushing commits or opening a pull request will not automatically start a workflow. Run it only from the `desktop-productization` branch after implementation is ready. The app should not be described as release-ready until the native build, provider live tests, project editing, project generation, and command execution have been tested on macOS.
+The macOS build and runtime still need to pass the branch's automated build and live provider/file-workspace tests before this should be treated as release-ready.

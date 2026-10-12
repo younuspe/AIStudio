@@ -1,6 +1,9 @@
 name: Native macOS desktop build
 
 on:
+  push:
+    branches:
+      - desktop-productization
   workflow_dispatch:
 
 permissions:

@@ -1,7 +1,9 @@
+import AppKit
 import SwiftUI
 
 enum MainSection: String, CaseIterable, Identifiable {
     case chat = "Chat"
+    case generativeStudio = "Generative Studio"
     case projects = "Projects"
     case visualEditor = "Visual Editor"
     case developerTools = "Developer Tools"
@@ -12,6 +14,7 @@ enum MainSection: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .chat: return "bubble.left.and.bubble.right"
+        case .generativeStudio: return "sparkles"
         case .projects: return "folder"
         case .visualEditor: return "rectangle.on.rectangle"
         case .developerTools: return "terminal"
@@ -28,6 +31,7 @@ struct MainWindow: View {
             List(selection: $model.selectedSection) {
                 Section("Workspace") {
                     Label("Chat", systemImage: MainSection.chat.symbol).tag(MainSection.chat)
+                    Label("Generative Studio", systemImage: MainSection.generativeStudio.symbol).tag(MainSection.generativeStudio)
                     Label("Projects", systemImage: MainSection.projects.symbol).tag(MainSection.projects)
                     Label("Visual Editor", systemImage: MainSection.visualEditor.symbol).tag(MainSection.visualEditor)
                     Label("Developer Tools", systemImage: MainSection.developerTools.symbol).tag(MainSection.developerTools)
@@ -51,6 +55,7 @@ struct MainWindow: View {
             Group {
                 switch model.selectedSection ?? .chat {
                 case .chat: ChatWorkspace(model: model)
+                case .generativeStudio: GenerativeStudioWorkspace(model: model)
                 case .projects: ProjectWorkspace(model: model)
                 case .visualEditor: VisualEditorWorkspace(model: model)
                 case .developerTools: DeveloperToolsWorkspace(model: model)
@@ -60,5 +65,8 @@ struct MainWindow: View {
             .frame(minWidth: 680, minHeight: 560)
         }
         .navigationSplitViewStyle(.balanced)
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
+            model.stopProjectPreviewServer()
+        }
     }
 }
