@@ -1,4 +1,4 @@
-# <img src="Supru.ico" width="64" alt="Supru icon" /> Supru App Builder — Native macOS Desktop App
+# <img src="Supru.jpg" width="64" alt="Supru icon" /> Supru App Builder — Native macOS Desktop App
 
 Supru App Builder is a standalone macOS application using SwiftUI and AppKit. Its own interface is native; it does not wrap a website, start Next.js, or require a browser.
 
