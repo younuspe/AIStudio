@@ -1,6 +1,6 @@
-# AIStudio — Native macOS Desktop App
+# Supru App Builder — Native macOS Desktop App
 
-AIStudio is being rebuilt as a standalone macOS application using SwiftUI and AppKit. Its own interface is native; it does not wrap a website, start Next.js, or require a browser.
+Supru App Builder is a standalone macOS application using SwiftUI and AppKit. Its own interface is native; it does not wrap a website, start Next.js, or require a browser.
 
 ## Current native foundation
 
@@ -22,7 +22,7 @@ AIStudio is being rebuilt as a standalone macOS application using SwiftUI and Ap
 
 This is the native desktop foundation, not a claim that every planned advanced editing feature is complete. The project editor is a text editor; full Photoshop/Figma-grade semantic editing, unrestricted cross-format document editing, and a full multi-agent orchestration engine are not yet implemented in this native rewrite.
 
-Image generation/editing requires a model/provider that supports image output: OpenAI-compatible providers use /images/generations or /images/edits; Google Gemini uses its native generateContent endpoint. Not every text model supports image output, and free chat access does not imply free image generation. Voice dictation requires macOS microphone and speech-recognition permissions. Generated apps still require review, dependency installation, and build/test verification; file generation alone is not proof of functionality. AIStudio reports provider errors rather than simulated success.
+Image generation/editing requires a model/provider that supports image output: OpenAI-compatible providers use /images/generations or /images/edits; Google Gemini uses its native generateContent endpoint. Not every text model supports image output, and free chat access does not imply free image generation. Voice dictation requires macOS microphone and speech-recognition permissions. Generated apps still require review, dependency installation, and build/test verification; file generation alone is not proof of functionality. Supru App Builder reports provider errors rather than simulated success.
 
 ## Build a standalone macOS app
 
@@ -32,13 +32,13 @@ From the repository root on a Mac:
 
     chmod +x scripts/build-macos-app.sh
     ./scripts/build-macos-app.sh
-    open dist/AIStudio.app
+    open "dist/Supru App Builder.app"
 
-The build script compiles arm64 and x86_64 Swift executables and combines them into a Universal 2 dist/AIStudio.app, so the same build supports Apple Silicon and Intel Macs. AIStudio's own UI does not require a Node.js development server. The build is unsigned and not notarized, so macOS may require a user-approved first launch.
+The build script compiles arm64 and x86_64 Swift executables and combines them into a Universal 2 dist/Supru App Builder.app, so the same build supports Apple Silicon and Intel Macs. Supru App Builder's own UI does not require a Node.js development server. The build is unsigned and not notarized, so macOS may require a user-approved first launch.
 
 To choose another output location:
 
-    ./scripts/build-macos-app.sh "$HOME/Applications/AIStudio.app"
+    ./scripts/build-macos-app.sh "$HOME/Applications/Supru App Builder.app"
 
 ## Provider setup
 
@@ -62,6 +62,6 @@ Review generated code and shell commands before executing them. Chat attachments
 
 ## Workflow isolation and status
 
-All current desktop work is on the separate branch named desktop-productization in the AIStudio fork repository. The GitHub Actions build is configured only for pushes to that branch or a manual dispatch. It does not run for pull requests, and no pull request is created automatically. Commits made to this branch update the fork's branch only; they do not update the parent repository's public branch.
+All current desktop work is on the separate branch named desktop-productization in the AIStudio repository. The GitHub Actions build is configured only for pushes to that branch or a manual dispatch. It does not run for pull requests, and no pull request is created automatically. Commits made to this branch update the fork's branch only; they do not update the parent repository's public branch.
 
-The macOS build and runtime still need to pass the branch's automated build and live provider/file-workspace tests before this should be treated as release-ready.
+The app is not release-ready until the branch's automated build, startup smoke test, and live provider/file-workspace tests pass.
