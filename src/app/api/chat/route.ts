@@ -33,16 +33,10 @@ export async function POST(request: NextRequest) {
     const locked = await requireUnlock(request);
     if (locked) return locked;
 
-    console.log("[chat/api] ====== POST /api/chat START ======");
+    // Do not log prompts, conversation identifiers, attachment names, or payload metadata.
+    // Chat content may contain private information and logs are not an appropriate storage layer.
     await getDb();
     const body = await request.json();
-    console.log("[chat/api] Request body keys:", Object.keys(body));
-    console.log("[chat/api] conversation_id:", body.conversation_id);
-    console.log("[chat/api] message:", (body.message || "").slice(0, 100));
-    console.log("[chat/api] model:", body.model);
-    console.log("[chat/api] stream:", body.stream);
-    console.log("[chat/api] attachments:", body.attachments?.length || 0, body.attachments?.map((a: any) => ({ mime_type: a.mime_type, name: a.name, data_url_len: a.data_url?.length || 0 })));
-    console.log("[chat/api] skip_user_message_creation:", body.skip_user_message_creation);
     const {
       conversation_id,
       message,
