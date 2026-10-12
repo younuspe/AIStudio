@@ -238,12 +238,27 @@ struct ChatWorkspace: View {
                         .disabled(model.isSending || model.isGeneratingProject)
 
                         Button { submitComposer() } label: {
-                            Image(systemName: composerMode == .build ? "hammer.circle.fill" : "arrow.up.circle.fill")
-                                .font(.system(size: 28))
+                            Text("Meow!")
+                                .font(.system(size: 13, weight: .black, design: .rounded))
+                                .foregroundStyle(Color.white)
+                                .padding(.horizontal, 17)
+                                .frame(height: 39)
+                                .background(
+                                    LinearGradient(
+                                        colors: [BrandTheme.hotOrange, BrandTheme.deepRed],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    in: Capsule()
+                                )
+                                .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 1))
+                                .shadow(color: BrandTheme.deepRed.opacity(0.38), radius: 10, x: 0, y: 0)
                         }
                         .buttonStyle(.plain)
                         .disabled(model.isSending || model.isGeneratingProject ||
                                   model.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .opacity(model.isSending || model.isGeneratingProject ||
+                                 model.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.48 : 1)
                         .help(composerMode == .build ? "Create app from this prompt" : "Send message")
                     }
                     if let voiceError = voiceInput.errorMessage, !voiceError.isEmpty {
