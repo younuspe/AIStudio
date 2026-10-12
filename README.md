@@ -34,7 +34,7 @@ From the repository root on a Mac:
     ./scripts/build-macos-app.sh
     open "dist/Supru App Builder.app"
 
-The build script compiles arm64 and x86_64 Swift executables and combines them into a Universal 2 dist/Supru App Builder.app, so the same build supports Apple Silicon and Intel Macs. Supru App Builder's own UI does not require a Node.js development server. The build is locally ad-hoc signed and not Apple-notarized. The packaging script embeds the original Supru Stud `AppIcon.icns` from a pinned commit when no local `assets/AppIcon.icns` is present. The icon is bundled into the app; it is not fetched at runtime. macOS may still require a user-approved first launch because the app is not notarized.
+The build script compiles arm64 and x86_64 Swift executables and combines them into a Universal 2 dist/Supru App Builder.app, so the same build supports Apple Silicon and Intel Macs. Supru App Builder's own UI does not require a Node.js development server. The build is locally ad-hoc signed and not Apple-notarized. The packaging script embeds the original Supru Stud `AppIcon.icns` from a pinned commit when no local `assets/AppIcon.icns` is present. The icon is bundled into the app; it is not fetched at runtime. On first launch, try Control-clicking the app in Finder and choosing Open. Because the app is not notarized, Gatekeeper may still block it; ad-hoc signing fixes bundle integrity but does not replace Apple Developer ID signing and notarization.
 
 To choose another output location:
 
