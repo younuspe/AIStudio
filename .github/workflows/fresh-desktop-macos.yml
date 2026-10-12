@@ -1,4 +1,4 @@
-name: Fresh Desktop macOS Build
+name: Supru App Builder macOS Build
 
 on:
   workflow_dispatch:
@@ -61,7 +61,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APP="src-tauri/target/release/bundle/macos/AI Studio Desktop.app"
+          APP="src-tauri/target/release/bundle/macos/Supru App Builder.app"
           test -d "$APP"
           codesign --force --deep --sign - --timestamp=none "$APP"
           codesign --verify --deep --strict --verbose=2 "$APP"
@@ -70,17 +70,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APP="src-tauri/target/release/bundle/macos/AI Studio Desktop.app"
-          DMG="src-tauri/target/release/bundle/dmg/AI Studio Desktop_0.1.0_aarch64.dmg"
+          APP="src-tauri/target/release/bundle/macos/Supru App Builder.app"
+          DMG="src-tauri/target/release/bundle/dmg/Supru App Builder_0.1.0_aarch64.dmg"
           mkdir -p "$(dirname "$DMG")"
           rm -f "$DMG"
-          hdiutil create -volname "AI Studio Desktop" -srcfolder "$APP" -ov -format UDZO "$DMG"
+          hdiutil create -volname "Supru App Builder" -srcfolder "$APP" -ov -format UDZO "$DMG"
       - name: Verify DMG exists
-        run: test -s "src-tauri/target/release/bundle/dmg/AI Studio Desktop_0.1.0_aarch64.dmg"
+        run: test -s "src-tauri/target/release/bundle/dmg/Supru App Builder_0.1.0_aarch64.dmg"
       - name: Upload macOS installers
         uses: actions/upload-artifact@v4
         with:
-          name: AI-Studio-Desktop-macOS
+          name: Supru-App-Builder-macOS
           path: |
             fresh-desktop/src-tauri/target/release/bundle/dmg/*.dmg
             fresh-desktop/src-tauri/target/release/bundle/macos/*.app
