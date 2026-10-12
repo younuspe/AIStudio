@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>AI Studio Desktop</title><link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="brand"><img class="brand-icon" src="cat_icon.png" alt="Supru cat"><span>AI Studio</span></div>
+    <button class="rail-action active" data-view="build"><span>✳</span> Build</button>
+    <button class="rail-action" data-view="history"><span>◷</span> History</button>
+    <button class="rail-action" data-view="gallery"><span>▦</span> Gallery</button>
+    <div class="rail-spacer"></div>
+    <button class="rail-action" id="settingsOpen"><span>⚙</span> Settings</button>
+    <div class="profile"><img src="cat_icon.png" alt="Supru cat"></div>
+  </aside>
+  <main class="main">
+    <header class="topbar">
+      <div class="crumb"><span class="muted">My workspace</span><span class="slash">/</span><strong id="projectName">Untitled app</strong><button id="renameBtn" class="icon-btn" title="Rename project">✎</button></div>
+      <div class="top-actions"><span class="save-state" id="saveState">All changes saved</span><button class="secondary" id="shareBtn">↗ Share</button><button class="primary" id="exportBtn">Export project ↓</button></div>
+    </header>
+    <div class="workspace">
+      <section class="builder">
+        <div class="builder-head"><div><div class="eyebrow">APP BUILDER</div><h1>What will you build?</h1><p>Describe an idea and turn it into a working app.</p></div><button class="icon-btn" id="clearChat" title="New prompt">＋</button></div>
+        <div class="session-tools"><button class="tool-chip selected" data-mode="Build">✦ Build</button><button class="tool-chip" data-mode="Ask">☷ Ask</button><button class="tool-chip" data-mode="Plan">⌁ Plan</button><span class="tool-spacer"></span><button class="icon-btn" id="attachBtn" title="Attach files">＋</button><input id="fileInput" type="file" multiple hidden></div>
+        <div class="conversation" id="conversation"><div class="welcome"><div class="welcome-icon">✳</div><h2>Start with an idea</h2><p>Describe what you want to create. Your app and source code will appear in the workspace.</p><div class="suggestions"><button data-prompt="Build a modern task manager with projects, due dates, and a dark theme.">A task manager</button><button data-prompt="Create a beautiful personal portfolio with responsive layout and project cards.">A portfolio website</button><button data-prompt="Build a dashboard with charts, metrics, and a searchable data table.">An analytics dashboard</button></div></div></div>
+        <div class="composer-wrap"><div id="attachments" class="attachments"></div><textarea id="prompt" rows="3" placeholder="Describe your app, change a feature, or ask a question…"></textarea><div class="composer-bottom"><div class="model-controls"><span class="status-dot"></span><select id="provider"><option value="openai">OpenAI-compatible</option><option value="ollama">Ollama (local)</option></select><input id="model" value="gpt-4o-mini" aria-label="Model name"><button class="icon-btn" id="configBtn" title="Provider settings">⚙</button></div><button class="send" id="sendBtn">Run ↗</button></div></div>
+        <div class="footnote">AI can make mistakes. Review generated code before using it.</div>
+      </section>
+      <div class="workspace-splitter" id="workspaceSplitter" role="separator" aria-orientation="vertical" aria-label="Resize builder and preview" tabindex="0"></div>\n      <section class="preview">
+        <div class="preview-tabs"><div class="tabs"><button class="tab active" data-tab="preview">◫ Preview</button><button class="tab" data-tab="code">‹› Code</button><button class="tab" data-tab="files">▤ Files</button></div><div class="preview-actions"><label class="device-picker" title="Preview device"><span>▣</span><select id="deviceMode" aria-label="Preview device"><option value="current">Current scene</option><option value="mobile">Mobile</option><option value="tablet">Tablet</option></select></label><button class="icon-btn" id="rotatePreview" title="Rotate device preview" aria-label="Rotate device preview">⟳</button><span class="live-dot"></span><span id="previewStatus">Preview</span><button class="icon-btn" id="refreshPreview" title="Refresh preview">↻</button><button class="icon-btn" id="expandPreview" title="Expand preview">⤢</button><button class="secondary small" id="editTool" title="Select and edit elements in the preview">✎ Edit tool</button></div></div>
+        <div class="canvas" id="previewPane"><div id="previewEmpty" class="preview-empty"><div class="browser-icon">▣</div><h2>Your app preview</h2><p>Generated UI will run here. Start with a prompt to create your first version.</p><span class="keyboard-hint">Live preview · HTML / CSS / JS</span></div><iframe id="appFrame" title="Generated app preview" sandbox="allow-scripts allow-forms"></iframe><div class="edit-panel hidden" id="editPanel"><div class="edit-panel-head"><strong>Edit selected element</strong><button class="icon-btn" id="closeEditPanel" title="Close edit tool">×</button></div><div class="edit-target" id="editTarget">Select an element in the preview</div><label>Text<input id="editText" type="text" placeholder="Text content"></label><div class="edit-colors"><label>Text color<input id="editColor" type="color" value="#202033"></label><label>Background<input id="editBackground" type="color" value="#ffffff"></label></div><div class="edit-colors"><label>Font size (px)<input id="editFontSize" type="number" min="8" max="120" placeholder="Keep current"></label><label>Corner radius (px)<input id="editRadius" type="number" min="0" max="100" placeholder="Keep current"></label></div><div class="edit-panel-actions"><button class="secondary small" id="cancelEdit">Cancel</button><button class="primary small" id="applyEdit">Apply edit</button></div></div></div>
+        <div class="code-pane hidden" id="codePane"><div class="code-header"><span id="codeFilename">index.html</span><button class="secondary small" id="copyCode">Copy code</button></div><textarea id="codeEditor" spellcheck="false" aria-label="Generated source code" placeholder="Generated source code will appear here."></textarea><div class="code-footer"><span id="codeStatus">Ready for code</span><button class="primary small" id="applyCode">Apply changes ↗</button></div></div>
+        <div class="files-pane hidden" id="filesPane"><div class="files-title">Project files <button class="secondary small" id="newFile">＋ New file</button></div><div id="fileList" class="file-list"><div class="empty-file">Your project files will appear here.</div></div></div>
+      </section>
+    </div>
+  </main>
+</div>
+<div class="modal-backdrop hidden" id="renameModal"><section class="modal rename-modal" role="dialog" aria-modal="true" aria-labelledby="renameHeading"><div class="modal-head"><div><div class="eyebrow">PROJECT</div><h2 id="renameHeading">Rename project</h2></div><button class="icon-btn" id="closeRename" aria-label="Close rename dialog">✕</button></div><label>Project name<input id="renameInput" maxlength="100" placeholder="My app"></label><div class="modal-actions"><button class="secondary" id="cancelRename">Cancel</button><button class="primary" id="saveRename">Save name</button></div></section></div>
+<div class="modal-backdrop hidden" id="settingsModal"><section class="modal"><div class="modal-head"><div><div class="eyebrow">CONFIGURATION</div><h2>Model settings</h2></div><button class="icon-btn" id="closeSettings">✕</button></div><p class="modal-copy">Connect an OpenAI-compatible endpoint. Your key stays in this app's local settings and is not displayed after saving.</p><label>Provider endpoint<input id="baseUrl" placeholder="https://api.openai.com/v1"></label><label>API key<input id="apiKey" type="password" placeholder="Enter API key"></label><label>Default model<input id="defaultModel" placeholder="gpt-4o-mini"></label><div class="modal-actions"><button class="secondary" id="testConnection">Test connection</button><span id="connectionStatus"></span><button class="primary" id="saveSettings">Save settings</button></div><p class="modal-copy">For local Ollama, use <code>http://127.0.0.1:11434/v1</code> and a model installed on your Mac.</p></section></div>
+<div class="toast hidden" id="toast"></div>
+<script src="app.js"></script>
+</body></html>

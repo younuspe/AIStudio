@@ -1,0 +1,88 @@
+name: Fresh Desktop macOS Build
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "fresh-desktop/**"
+      - ".github/workflows/fresh-desktop-macos.yml"
+  push:
+    paths:
+      - "fresh-desktop/**"
+      - ".github/workflows/fresh-desktop-macos.yml"
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: fresh-desktop
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install dependencies
+        run: npm install
+      - name: Retrieve existing Supru macOS app icon
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p src-tauri/icons
+          curl --fail --location --silent --show-error \
+            https://raw.githubusercontent.com/younuspe/Stud/main/public/AppIcon.icns \
+            --output ui/AppIcon.icns
+          file ui/AppIcon.icns | grep -qi 'Mac OS X icon'
+          test -s ui/AppIcon.icns
+      - name: Generate valid PNG icon for Tauri build context
+        shell: bash
+        run: |
+          set -euo pipefail
+          sips -s format png ui/AppIcon.icns --out src-tauri/icons/icon.png
+          file src-tauri/icons/icon.png | grep -q 'PNG image'
+          test -s src-tauri/icons/icon.png
+      - name: Convert cat artwork to a valid PNG for UI assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          sips -s format png ui/cat_icon.png --out ui/cat_icon.converted.png
+          file ui/cat_icon.converted.png | grep -q 'PNG image'
+          mv ui/cat_icon.converted.png ui/cat_icon.png
+          file ui/cat_icon.png
+      - name: Validate desktop UI JavaScript syntax
+        run: node --check ui/app.js
+      - name: Build macOS app bundle
+        run: npm run build -- --bundles app
+      - name: Ad-hoc sign and verify app bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="src-tauri/target/release/bundle/macos/AI Studio Desktop.app"
+          test -d "$APP"
+          codesign --force --deep --sign - --timestamp=none "$APP"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          test -f "$APP/Contents/_CodeSignature/CodeResources"
+      - name: Create DMG from verified app
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="src-tauri/target/release/bundle/macos/AI Studio Desktop.app"
+          DMG="src-tauri/target/release/bundle/dmg/AI Studio Desktop_0.1.0_aarch64.dmg"
+          mkdir -p "$(dirname "$DMG")"
+          rm -f "$DMG"
+          hdiutil create -volname "AI Studio Desktop" -srcfolder "$APP" -ov -format UDZO "$DMG"
+      - name: Verify DMG exists
+        run: test -s "src-tauri/target/release/bundle/dmg/AI Studio Desktop_0.1.0_aarch64.dmg"
+      - name: Upload macOS installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI-Studio-Desktop-macOS
+          path: |
+            fresh-desktop/src-tauri/target/release/bundle/dmg/*.dmg
+            fresh-desktop/src-tauri/target/release/bundle/macos/*.app
+          if-no-files-found: error
+          retention-days: 7
