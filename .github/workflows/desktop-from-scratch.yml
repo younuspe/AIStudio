@@ -28,8 +28,9 @@ jobs:
           curl --fail --location --retry 3 \
             https://raw.githubusercontent.com/younuspe/Stud/main/public/AppIcon.icns \
             --output src-tauri/icons/SupruStud-AppIcon.icns
-          file src-tauri/icons/SupruStud-AppIcon.icns
-          python3 -c 'from pathlib import Path; p=Path("src-tauri/icons/SupruStud-AppIcon.icns").read_bytes(); assert p.startswith(b"icns"), "Supru Stud app icon is not a valid ICNS file"; print("Verified existing Supru Stud ICNS app icon:", len(p), "bytes")'
+          sips -s format png -z 1024 1024 src-tauri/icons/SupruStud-AppIcon.icns --out src-tauri/icons/icon.png
+          file src-tauri/icons/SupruStud-AppIcon.icns src-tauri/icons/icon.png
+          python3 -c 'from pathlib import Path; icns=Path("src-tauri/icons/SupruStud-AppIcon.icns").read_bytes(); png=Path("src-tauri/icons/icon.png").read_bytes(); assert icns.startswith(b"icns"), "Invalid Supru Stud ICNS"; assert png.startswith(bytes.fromhex("89504e470d0a1a0a")), "Invalid generated PNG"; print("Verified matching Supru Stud ICNS and PNG icons")'
       - name: Build macOS desktop app and DMG
         run: npm run tauri build
       - name: Upload single Apple Silicon DMG
