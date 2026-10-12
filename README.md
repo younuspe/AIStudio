@@ -34,7 +34,7 @@ From the repository root on a Mac:
     ./scripts/build-macos-app.sh
     open "dist/Supru App Builder.app"
 
-The build script compiles arm64 and x86_64 Swift executables and combines them into a Universal 2 dist/Supru App Builder.app, so the same build supports Apple Silicon and Intel Macs. Supru App Builder's own UI does not require a Node.js development server. The build is unsigned and not notarized, so macOS may require a user-approved first launch.
+The build script compiles arm64 and x86_64 Swift executables and combines them into a Universal 2 dist/Supru App Builder.app, so the same build supports Apple Silicon and Intel Macs. Supru App Builder's own UI does not require a Node.js development server. The build is locally ad-hoc signed and not Apple-notarized. The packaging script embeds the original Supru Stud `AppIcon.icns` from a pinned commit when no local `assets/AppIcon.icns` is present. The icon is bundled into the app; it is not fetched at runtime. macOS may still require a user-approved first launch because the app is not notarized.
 
 To choose another output location:
 
