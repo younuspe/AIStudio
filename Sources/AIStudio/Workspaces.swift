@@ -155,6 +155,10 @@ struct ChatWorkspace: View {
 private struct ChatMessageRow: View {
     let message: ChatMessage
 
+    private var formattedContent: AttributedString {
+        (try? AttributedString(markdown: message.content)) ?? AttributedString(message.content)
+    }
+
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: message.role == "user" ? "person.crop.circle" : "sparkles")
@@ -166,7 +170,7 @@ private struct ChatMessageRow: View {
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundStyle(.secondary)
-                Text(message.content)
+                Text(formattedContent)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -328,9 +332,9 @@ struct VisualEditorWorkspace: View {
             .padding(12)
             Divider()
 
-            if let url = model.previewFileURL {
+            if let url = model.previewFileURL, let accessRoot = model.workspaceURL {
                 HSplitView {
-                    LocalHTMLPreview(fileURL: url, refreshID: model.previewRefreshID)
+                    LocalHTMLPreview(fileURL: url, accessRoot: accessRoot, refreshID: model.previewRefreshID)
                         .frame(minWidth: 420, minHeight: 400)
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Selected page").font(.headline)
@@ -492,11 +496,12 @@ struct DeveloperToolsWorkspace: View {
 
 private struct LocalHTMLPreview: NSViewRepresentable {
     let fileURL: URL
+    let accessRoot: URL
     let refreshID: UUID
 
     func makeNSView(context: Context) -> WKWebView {
         let view = WKWebView()
-        view.loadFileURL(fileURL, allowingReadAccessTo: fileURL.deletingLastPathComponent())
+        view.loadFileURL(fileURL, allowingReadAccessTo: accessRoot)
         return view
     }
 
@@ -504,7 +509,7 @@ private struct LocalHTMLPreview: NSViewRepresentable {
         if context.coordinator.lastRefreshID != refreshID || context.coordinator.lastPath != fileURL.path {
             context.coordinator.lastRefreshID = refreshID
             context.coordinator.lastPath = fileURL.path
-            view.loadFileURL(fileURL, allowingReadAccessTo: fileURL.deletingLastPathComponent())
+            view.loadFileURL(fileURL, allowingReadAccessTo: accessRoot)
         }
     }
 

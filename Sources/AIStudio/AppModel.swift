@@ -67,6 +67,15 @@ private struct PersistedState: Codable {
     var workspacePath: String?
 }
 
+private struct GeneratedProjectPlan: Decodable {
+    let files: [GeneratedProjectPlanFile]
+}
+
+private struct GeneratedProjectPlanFile: Decodable {
+    let path: String
+    let purpose: String
+}
+
 private struct GeneratedProjectPayload: Decodable {
     let files: [GeneratedProjectFile]
 }
@@ -178,11 +187,12 @@ final class AppModel: ObservableObject {
     func attachContextFiles() {
         let panel = NSOpenPanel()
         panel.title = "Attach files to chat"
-        panel.message = "Choose text or source files to include as context for the next message."
+        panel.message = "Choose source or text files to include as context. Selected content is sent to your chosen model; do not attach secrets or API-key files."
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = true
         guard panel.runModal() == .OK else { return }
+        let requestedCount = chatAttachments.count + panel.urls.count
         var combined = chatAttachments
         for url in panel.urls {
             let standardized = url.standardizedFileURL
@@ -191,8 +201,8 @@ final class AppModel: ObservableObject {
             }
         }
         chatAttachments = combined
-        if combined.count == 8 && panel.urls.count > 8 {
-            statusMessage = "A maximum of eight files can be attached to one message."
+        if combined.count < requestedCount {
+            statusMessage = "A maximum of eight unique files can be attached to one message."
         }
     }
 
@@ -210,15 +220,26 @@ final class AppModel: ObservableObject {
                 break
             }
             do {
-                let data = try Data(contentsOf: url)
-                guard let body = String(data: data, encoding: .utf8) else {
-                    blocks.append("FILE: \(url.path)\n[Not a UTF-8 text file; content omitted.]")
+                let attributes = try fileManager.attributesOfItem(atPath: url.path)
+                let totalBytes = (attributes[.size] as? NSNumber)?.intValue ?? 0
+                let handle = try FileHandle(forReadingFrom: url)
+                let data: Data
+                do {
+                    data = try handle.read(upToCount: 512_000) ?? Data()
+                    try handle.close()
+                } catch {
+                    try? handle.close()
+                    throw error
+                }
+                guard !data.isEmpty, totalBytes > 0 else {
+                    blocks.append("FILE: \(url.path)\n[File is empty or unreadable as text.]")
                     continue
                 }
+                let body = String(decoding: data, as: UTF8.self)
                 let excerpt = String(body.prefix(min(body.count, remainingCharacters)))
                 remainingCharacters -= excerpt.count
                 blocks.append("FILE: \(url.path)\n--- BEGIN FILE CONTENT ---\n\(excerpt)\n--- END FILE CONTENT ---")
-                if excerpt.count < body.count {
+                if excerpt.count < body.count || totalBytes > data.count {
                     blocks.append("[File content truncated to keep the request within a safe context limit.]")
                 }
             } catch {
@@ -621,41 +642,142 @@ final class AppModel: ObservableObject {
         let key = KeychainStore.read(account: provider.keychainAccount) ?? ""
         isGeneratingProject = true
         lastError = nil
-        statusMessage = "Asking the selected model to plan project files…"
-        let systemPrompt = """
-        You are a senior software project generator. Return ONLY one valid JSON object in this exact shape:
-        {"files":[{"path":"relative/path.ext","content":"complete file contents"}]}
-        Create a useful, complete project with source files, dependency manifests, configuration, and a README when appropriate.
-        Do not use Markdown fences or text outside the JSON. Paths must be relative; never write secrets. Keep every path inside the project folder.
-        """
-        let messages = [
-            ChatMessage(role: "system", content: systemPrompt),
-            ChatMessage(role: "user", content: "Generate this project in the currently selected folder: \(requestText)")
-        ]
+        statusMessage = "Planning a complete project file tree…"
 
         Task {
             do {
-                let response = try await AIProviderClient.complete(provider: provider, apiKey: key, messages: messages)
-                guard let data = Self.extractJSON(response).data(using: .utf8) else { throw AppModelError.invalidProjectJSON }
-                let payload = try JSONDecoder().decode(GeneratedProjectPayload.self, from: data)
-                guard !payload.files.isEmpty, payload.files.count <= 120 else { throw AppModelError.invalidProjectSize }
+                let planSystem = """
+                You are a senior software architect planning a complete, runnable project.
+                Return ONLY one valid JSON object with this exact shape:
+                {"files":[{"path":"relative/path.ext","purpose":"what this file implements"}]}
+                Plan between 1 and 24 useful files. Include the relevant source code, dependency manifest,
+                build/runtime configuration, README, and starter tests when suitable. Avoid lockfiles,
+                binary assets, generated output, placeholder files, and unnecessary files. Keep all paths relative.
+                Do not output Markdown fences or explanation outside JSON.
+                """
+                let planReply = try await AIProviderClient.complete(
+                    provider: provider,
+                    apiKey: key,
+                    messages: [
+                        ChatMessage(role: "system", content: planSystem),
+                        ChatMessage(role: "user", content: "Project requirements:\n\(requestText)\n\nReturn the proposed project file plan as JSON.")
+                    ]
+                )
+                guard let planData = Self.extractJSON(planReply).data(using: .utf8) else {
+                    throw AppModelError.invalidProjectJSON
+                }
+                let plan = try JSONDecoder().decode(GeneratedProjectPlan.self, from: planData)
+                guard !plan.files.isEmpty, plan.files.count <= 24 else {
+                    throw AppModelError.invalidProjectPlan
+                }
+
+                var plannedPaths = Set<String>()
+                for item in plan.files {
+                    let normalized = Self.normalizeProjectPath(item.path)
+                    guard !normalized.isEmpty,
+                          plannedPaths.insert(normalized.lowercased()).inserted,
+                          validatedProjectURL(normalized, root: root) != nil else {
+                        throw AppModelError.unsafeProjectPath(item.path)
+                    }
+                }
+
+                var generatedFiles: [GeneratedProjectFile] = []
+                var offset = 0
+                let batchSize = 3
+                while offset < plan.files.count {
+                    let end = min(offset + batchSize, plan.files.count)
+                    let batch = Array(plan.files[offset..<end])
+                    let batchList = batch.map { "- \($0.path): \($0.purpose)" }.joined(separator: "\n")
+                    statusMessage = "Generating project files \(offset + 1)–\(end) of \(plan.files.count)…"
+
+                    let fileSystemPrompt = """
+                    You are a senior software engineer writing production-quality project source files.
+                    Return ONLY valid JSON in this shape:
+                    {"files":[{"path":"relative/path.ext","content":"complete file content"}]}
+                    Generate the complete contents for every requested file, with correct JSON escaping.
+                    Include working implementations, error handling, dependency manifests, and config as appropriate.
+                    Return every requested path exactly once, do not add unrequested paths, do not use Markdown fences,
+                    and do not place explanatory text outside the JSON object.
+                    """
+                    let fileReply = try await AIProviderClient.complete(
+                        provider: provider,
+                        apiKey: key,
+                        messages: [
+                            ChatMessage(role: "system", content: fileSystemPrompt),
+                            ChatMessage(
+                                role: "user",
+                                content: """
+                                Overall project requirements:
+                                \(requestText)
+
+                                Generate complete file content for this batch:
+                                \(batchList)
+
+                                Ensure imports, paths, commands, and package scripts are mutually consistent.
+                                """
+                            )
+                        ]
+                    )
+                    guard let fileData = Self.extractJSON(fileReply).data(using: .utf8) else {
+                        throw AppModelError.invalidProjectJSON
+                    }
+                    let decoded = try JSONDecoder().decode(GeneratedProjectPayload.self, from: fileData)
+                    var returnedPaths = Set<String>()
+                    for item in decoded.files {
+                        let normalized = Self.normalizeProjectPath(item.path)
+                        guard let planned = batch.first(where: {
+                            Self.normalizeProjectPath($0.path) == normalized
+                        }) else {
+                            throw AppModelError.unrequestedProjectPath(item.path)
+                        }
+                        guard returnedPaths.insert(normalized).inserted else {
+                            throw AppModelError.duplicateProjectPath(item.path)
+                        }
+                        generatedFiles.append(GeneratedProjectFile(path: planned.path, content: item.content))
+                    }
+                    let expectedPaths = Set(batch.map { Self.normalizeProjectPath($0.path) })
+                    guard returnedPaths == expectedPaths else {
+                        let missing = batch
+                            .filter { !returnedPaths.contains(Self.normalizeProjectPath($0.path)) }
+                            .map(\.path)
+                            .joined(separator: ", ")
+                        throw AppModelError.incompleteProjectBatch(missing)
+                    }
+                    offset = end
+                }
 
                 var prepared: [(URL, Data)] = []
                 var totalBytes = 0
-                for file in payload.files {
-                    guard let url = validatedProjectURL(file.path, root: root) else { throw AppModelError.unsafeProjectPath(file.path) }
-                    let content = Data(file.content.utf8)
-                    guard content.count <= 1_000_000 else { throw AppModelError.fileTooLarge(file.path) }
-                    totalBytes += content.count
+                var finalPaths = Set<String>()
+                for file in generatedFiles {
+                    guard let url = validatedProjectURL(file.path, root: root) else {
+                        throw AppModelError.unsafeProjectPath(file.path)
+                    }
+                    guard finalPaths.insert(url.path.lowercased()).inserted else {
+                        throw AppModelError.duplicateProjectPath(file.path)
+                    }
+                    let data = Data(file.content.utf8)
+                    guard data.count <= 1_000_000 else { throw AppModelError.fileTooLarge(file.path) }
+                    totalBytes += data.count
                     guard totalBytes <= 20_000_000 else { throw AppModelError.projectTooLarge }
-                    prepared.append((url, content))
+                    prepared.append((url, data))
                 }
 
-                let existing = prepared.filter { fileManager.fileExists(atPath: $0.0.path) }
-                if !existing.isEmpty {
+                var existingBackups: [String: Data] = [:]
+                var existingPaths: [URL] = []
+                for (url, _) in prepared where fileManager.fileExists(atPath: url.path) {
+                    var isDirectory: ObjCBool = false
+                    guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory), !isDirectory.boolValue else {
+                        throw AppModelError.targetIsDirectory(url.path)
+                    }
+                    existingBackups[url.path] = try Data(contentsOf: url)
+                    existingPaths.append(url)
+                }
+
+                if !existingPaths.isEmpty {
                     let alert = NSAlert()
                     alert.messageText = "Replace existing project files?"
-                    alert.informativeText = "\(existing.count) generated file(s) already exist. Replacing them may overwrite your edits."
+                    alert.informativeText = "\(existingPaths.count) generated file(s) already exist. Replacing them may overwrite your edits."
                     alert.addButton(withTitle: "Replace Files")
                     alert.addButton(withTitle: "Cancel")
                     guard alert.runModal() == .alertFirstButtonReturn else {
@@ -665,10 +787,24 @@ final class AppModel: ObservableObject {
                     }
                 }
 
-                for (url, data) in prepared {
-                    try fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-                    try data.write(to: url, options: .atomic)
+                var writtenPaths: [URL] = []
+                do {
+                    for (url, data) in prepared {
+                        try fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                        try data.write(to: url, options: .atomic)
+                        writtenPaths.append(url)
+                    }
+                } catch {
+                    for url in writtenPaths.reversed() {
+                        if let backup = existingBackups[url.path] {
+                            try? backup.write(to: url, options: .atomic)
+                        } else {
+                            try? fileManager.removeItem(at: url)
+                        }
+                    }
+                    throw error
                 }
+
                 projectPrompt = ""
                 refreshWorkspaceFiles()
                 isGeneratingProject = false
@@ -680,6 +816,12 @@ final class AppModel: ObservableObject {
                 lastError = "Project generation failed: \(error.localizedDescription)"
             }
         }
+    }
+
+    private static func normalizeProjectPath(_ value: String) -> String {
+        var path = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        while path.hasPrefix("./") { path.removeFirst(2) }
+        return path
     }
 
     private static func extractJSON(_ text: String) -> String {
@@ -851,18 +993,38 @@ final class AppModel: ObservableObject {
 
 private enum AppModelError: LocalizedError {
     case invalidProjectJSON
+    case invalidProjectPlan
     case invalidProjectSize
     case unsafeProjectPath(String)
+    case unrequestedProjectPath(String)
+    case duplicateProjectPath(String)
+    case incompleteProjectBatch(String)
+    case targetIsDirectory(String)
     case fileTooLarge(String)
     case projectTooLarge
 
     var errorDescription: String? {
         switch self {
-        case .invalidProjectJSON: return "The model did not return valid JSON. Try a smaller or more specific project request."
-        case .invalidProjectSize: return "The model returned no files or more than the 120-file limit."
-        case .unsafeProjectPath(let path): return "Refused to write an unsafe path: \(path)"
-        case .fileTooLarge(let path): return "Generated file exceeds the 1 MB limit: \(path)"
-        case .projectTooLarge: return "Generated project exceeds the 20 MB total size limit."
+        case .invalidProjectJSON:
+            return "The model did not return valid JSON. Try again with a smaller or more specific project request."
+        case .invalidProjectPlan:
+            return "The model did not return a usable project plan. Try a more specific project request."
+        case .invalidProjectSize:
+            return "The model returned no files or exceeded the project-file limit."
+        case .unsafeProjectPath(let path):
+            return "Refused to write an unsafe path: \(path)"
+        case .unrequestedProjectPath(let path):
+            return "The model returned an unrequested file path: \(path)"
+        case .duplicateProjectPath(let path):
+            return "The model returned a duplicate file path: \(path)"
+        case .incompleteProjectBatch(let paths):
+            return "The model did not return all files in a generation batch: \(paths). Retry with a more specific request."
+        case .targetIsDirectory(let path):
+            return "A folder already occupies a generated file path: \(path)"
+        case .fileTooLarge(let path):
+            return "Generated file exceeds the 1 MB limit: \(path)"
+        case .projectTooLarge:
+            return "Generated project exceeds the 20 MB total size limit."
         }
     }
 }

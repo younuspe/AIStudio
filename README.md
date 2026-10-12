@@ -12,7 +12,7 @@ AIStudio is being rebuilt as a standalone macOS application using **SwiftUI and 
 - Project folder picker and local file browser.
 - Attach up to eight source/text files to a chat message; file contents are size-limited and sent only to the provider selected in the app.
 - Create files and folders, rename or delete files with confirmation, edit UTF-8 text files, and save changes directly to disk.
-- Model-driven project generation that writes returned files into the selected directory, with path traversal protections, size caps, and an overwrite confirmation.
+- Multi-stage model-driven project generation: plan the file tree first, generate up to 24 files in batches of three, validate paths and duplicate names, confirm overwrites, and roll back previously written files if a write fails.
 - Developer console for explicit user-entered commands, with output and exit-code capture. Commands run as the current macOS user, so review commands before execution.
 - Local HTML preview for a project you open. WebKit is used only as the project preview; AIStudio's own UI remains native.
 - No sign-in or password gate.
