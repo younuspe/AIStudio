@@ -22,37 +22,19 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Install frontend dependencies
         run: npm install
-      - name: Type-check and build frontend
-        run: npm run build
-      - name: Generate temporary valid app icon for packaging
+      - name: Use the existing Supru Stud app icon
         run: |
           mkdir -p src-tauri/icons
-          python3 - <<'PY'
-          import struct, zlib
-          w = h = 64
-          rows = []
-          for y in range(h):
-              row = bytearray([0])
-              for x in range(w):
-                  # Minimal indigo tile with a white center mark; real branding can replace this.
-                  if 18 <= x <= 45 and 18 <= y <= 45 and (abs(x-32) < 7 or abs(y-32) < 7):
-                      row.extend((255, 255, 255, 255))
-                  else:
-                      row.extend((79, 70, 229, 255))
-              rows.append(bytes(row))
-          def chunk(kind, data):
-              return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff)
-          png = b"\x89PNG\r\n\x1a\n"
-          png += chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0))
-          png += chunk(b"IDAT", zlib.compress(b"".join(rows)))
-          png += chunk(b"IEND", b"")
-          open("src-tauri/icons/icon.png", "wb").write(png)
-          PY
-      - name: Check Rust desktop backend
-        run: cargo check --manifest-path src-tauri/Cargo.toml
-      - name: Build macOS DMG
+          curl --fail --location --retry 3 \
+            https://raw.githubusercontent.com/younuspe/Stud/main/public/AppIcon.icns \
+            --output src-tauri/icons/SupruStud-AppIcon.icns
+          sips -s format png -s pixelWidth 1024 -s pixelHeight 1024 \
+            src-tauri/icons/SupruStud-AppIcon.icns --out src-tauri/icons/icon.png
+          file src-tauri/icons/icon.png
+          python3 -c 'from pathlib import Path; p=Path("src-tauri/icons/icon.png").read_bytes(); assert p.startswith(bytes.fromhex("89504e470d0a1a0a")), "Converted app icon is not a valid PNG"; print("Verified valid PNG app icon:", len(p), "bytes")'
+      - name: Build macOS desktop app and DMG
         run: npm run tauri build
-      - name: Upload DMG
+      - name: Upload single Apple Silicon DMG
         uses: actions/upload-artifact@v4
         with:
           name: AIStudio-Desktop-macOS-AppleSilicon
