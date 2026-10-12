@@ -1,12 +1,12 @@
 [package]
-name = "aistudio-desktop-fresh"
+name = "supru-app-builder"
 version = "0.1.0"
-description = "A fresh native desktop AI Studio workspace"
-authors = ["AIStudio"]
+description = "Supru App Builder native macOS workspace"
+authors = ["Supru"]
 edition = "2021"
 
 [lib]
-name = "aistudio_desktop_fresh_lib"
+name = "supru_app_builder_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
