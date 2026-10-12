@@ -1,21 +1,57 @@
 # AI Studio Desktop — Fresh Rebuild
 
-This is a new implementation placed in `fresh-desktop/`. It does not import or reuse the existing application's source files.
+An independent native macOS desktop-app implementation in `fresh-desktop/`. The branch has been cleaned of the previous web app's source, dependency manifests, and web-only documentation so the desktop build is the focus.
 
-## Current scope
-- Tauri 2 native desktop window and macOS app/DMG bundle configuration.
-- Split workspace with prompt/chat, preview, code editor, and project-file list.
-- OpenAI-compatible `/chat/completions` endpoint support, with endpoint and API key configuration.
+## Reference designs and branding
+
+- [Reference 01](../Ref-01.jpeg)
+- [Reference 02](../Ref-02.jpeg)
+- [Reference 03](../Ref-03.jpeg)
+
+The interface is guided by these references and should use the project's own Supru cat artwork, not Google's official logo.
+
+## Current implementation scope
+
+- Tauri 2 desktop shell and macOS app/DMG packaging.
+- Workspace layout with prompt/chat, preview, code editor, and project-file list.
+- OpenAI-compatible `/chat/completions` endpoint configuration.
 - Ollama-compatible local endpoint option.
-- Single-file HTML app generation, editable code, sandboxed live preview, and HTML export.
-- Starter preview includes a working button interaction.
+- Single-file HTML generation, code editing, live preview, and HTML export.
 
-## Build prerequisites
-Install Node.js LTS, Rust, and the macOS Xcode Command Line Tools. From this directory run:
+This is still a work in progress, not a claim of full Google AI Studio feature parity or production readiness. Provider calls, API-key storage, preview isolation, and the packaged application need end-to-end verification.
+
+## Build on macOS
+
+Requirements: Node.js 22 LTS, Rust stable, and the macOS Xcode Command Line Tools.
 
 ```sh
+cd fresh-desktop
 npm install
 npm run build
 ```
 
-The macOS bundle has not been built or tested by this commit. Provider API keys are currently stored in browser local storage for this fresh prototype and should be moved to the OS keychain before production use. This is a new implementation foundation, not a claim of full Google AI Studio feature parity yet.
+The GitHub Actions workflow is `.github/workflows/fresh-desktop-macos.yml`. It builds the app and packages a DMG. It uses free ad-hoc signing only—not Apple Developer ID signing or notarization—so macOS may still show a security warning for downloaded builds.
+
+## Project layout
+
+```
+fresh-desktop/
+  ui/             # Desktop frontend and artwork
+  src-tauri/      # Tauri/Rust shell and bundle configuration
+  package.json    # Desktop build scripts
+.github/workflows/
+  fresh-desktop-macos.yml
+Ref-01.jpeg
+Ref-02.jpeg
+Ref-03.jpeg
+```
+
+## Security and limitations
+
+- Do not commit API keys, tokens, or credentials.
+- API-key storage and provider requests need a security review before production use.
+- The macOS bundle must pass a real workflow build and install/launch test before it can be considered ready.
+
+## License
+
+See [LICENSE.md](../LICENSE.md).
