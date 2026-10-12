@@ -25,8 +25,12 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["dmg"],
-    "icon": [],
+    "targets": [
+      "dmg"
+    ],
+    "icon": [
+      "icons/icon.png"
+    ],
     "category": "DeveloperTool"
   }
 }
