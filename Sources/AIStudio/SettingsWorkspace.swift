@@ -64,13 +64,27 @@ struct SettingsWorkspace: View {
                     .padding(.vertical, 6)
                 }
 
+                if model.selectedProviderID == "ollama" {
+                    Text("Ollama runs supported models locally on your Mac. No remote API key is required, but you must already have the model installed.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+
                 if !model.discoveredModels.isEmpty {
                     GroupBox("Model IDs returned by this endpoint") {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Select an ID to use it. Whether a model is free, and its usage limits, are determined by the provider—not by AIStudio.")
                                 .font(.callout)
                                 .foregroundStyle(.secondary)
-                            ForEach(model.discoveredModels, id: \.self) { modelID in
+                            if model.selectedProviderID == "openrouter" {
+                                Toggle("Only show model IDs ending in :free", isOn: $model.showOnlyFreeModels)
+                            }
+                            if model.showOnlyFreeModels && model.visibleDiscoveredModels.isEmpty {
+                                Text("No :free model IDs were returned. Check the provider's current catalog and account access.")
+                                    .font(.callout)
+                                    .foregroundStyle(.secondary)
+                            }
+                            ForEach(model.visibleDiscoveredModels, id: \.self) { modelID in
                                 Button { model.useDiscoveredModel(modelID) } label: {
                                     HStack {
                                         Text(modelID).textSelection(.enabled)

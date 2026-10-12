@@ -92,6 +92,7 @@ final class AppModel: ObservableObject {
     @Published var apiKeyDraft = ""
     @Published var selectedProviderHasKey = false
     @Published var discoveredModels: [String] = []
+    @Published var showOnlyFreeModels = false
     @Published var isFetchingModels = false
 
     @Published var workspaceURL: URL?
@@ -131,6 +132,10 @@ final class AppModel: ObservableObject {
 
     var activeThread: ChatThread? {
         threads.first(where: { $0.id == activeThreadID })
+    }
+
+    var visibleDiscoveredModels: [String] {
+        showOnlyFreeModels ? discoveredModels.filter { $0.lowercased().hasSuffix(":free") } : discoveredModels
     }
 
     init() {
@@ -401,6 +406,7 @@ final class AppModel: ObservableObject {
         apiKeyDraft = ""
         selectedProviderHasKey = KeychainStore.read(account: provider.keychainAccount) != nil
         discoveredModels = []
+        showOnlyFreeModels = false
     }
 
     func addOpenAICompatibleProvider() {
