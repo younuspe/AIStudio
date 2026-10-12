@@ -28,7 +28,7 @@ jobs:
           curl --fail --location --retry 3 \
             https://raw.githubusercontent.com/younuspe/Stud/main/public/AppIcon.icns \
             --output src-tauri/icons/SupruStud-AppIcon.icns
-          sips -s format png -s pixelWidth 1024 -s pixelHeight 1024 \
+          sips -s format png -z 1024 1024 \
             src-tauri/icons/SupruStud-AppIcon.icns --out src-tauri/icons/icon.png
           file src-tauri/icons/icon.png
           python3 -c 'from pathlib import Path; p=Path("src-tauri/icons/icon.png").read_bytes(); assert p.startswith(bytes.fromhex("89504e470d0a1a0a")), "Converted app icon is not a valid PNG"; print("Verified valid PNG app icon:", len(p), "bytes")'
