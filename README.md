@@ -24,6 +24,10 @@ This is the native desktop foundation, not a claim that every planned advanced e
 
 Image generation/editing requires a model/provider that supports image output: OpenAI-compatible providers use /images/generations or /images/edits; Google Gemini uses its native generateContent endpoint. Not every text model supports image output, and free chat access does not imply free image generation. Voice dictation requires macOS microphone and speech-recognition permissions. Generated apps still require review, dependency installation, and build/test verification; file generation alone is not proof of functionality. Supru App Builder reports provider errors rather than simulated success.
 
+## Install the macOS app
+
+Open the [native macOS build workflow](https://github.com/younuspe/AIStudio/actions/workflows/native-macos-build.yml?query=branch%3Adesktop-productization), select the latest successful run, and download the `Supru-App-Builder-macOS-installer-ad-hoc-signed-not-notarized` artifact. Open the downloaded DMG and drag **Supru App Builder.app** to **Applications**. On first launch, Control-click the app in Finder and choose **Open** if macOS blocks it. This build is ad-hoc signed but not Apple-notarized.
+
 ## Build a standalone macOS app
 
 Requirements: macOS 13 or later and the Swift toolchain/Xcode Command Line Tools.
