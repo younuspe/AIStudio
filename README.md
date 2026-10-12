@@ -1,196 +1,67 @@
-# <img src="AIStudio.png" width="35" alt="AI Studio logo" /> AI Studio
+# AIStudio — Native macOS Desktop App
 
-AI Studio recreates the playground interface and interaction experience of
-Google AI Studio as a fully self-hosted web application. You can configure any
-**Gemini** or **OpenAI-compatible** endpoint (custom Base URL, API key, proxy),
-and all your data is stored in a **local embedded SQLite (libsql) database** —
-nothing ever leaves your machine except the requests you send to your own API
-endpoint.
+AIStudio is being rebuilt as a standalone macOS application using **SwiftUI and AppKit**. Its own interface is native; it does not wrap a website, start Next.js, or require a browser.
 
-This project is an **unofficial, educational open-source recreation** of the
-Google AI Studio interface, built with Next.js 14. It is for **learning and
-research purposes only** — it is not affiliated with, endorsed by, or sponsored
-by Google, and it involves no commercial interests whatsoever.
+## Current native foundation
 
-## Features
+- Native macOS app window, sidebar, menus, and keyboard shortcuts.
+- Chat UI with conversation history persisted locally.
+- Ollama local-model endpoint plus configurable NVIDIA, OpenRouter, and generic OpenAI-compatible endpoints.
+- Model catalog fetch through OpenAI-compatible \`/models\` endpoints.
+- API keys stored in macOS Keychain, not in the app's JSON state file.
+- Project folder picker and local file browser.
+- Create files and folders, edit UTF-8 text files, and save changes directly to disk.
+- Model-driven project generation that writes returned files into the selected directory, with path traversal protections, size caps, and an overwrite confirmation.
+- Local HTML preview for a project you open. WebKit is used only as the project preview; AIStudio's own UI remains native.
+- No sign-in or password gate.
 
-### Core Playground
+This is the first implementation milestone, not a claim that every planned editor capability is finished. It still needs an actual macOS build and live testing before it can be called release-ready.
 
-- 💬 Streaming (SSE) and non-streaming chat completions
-- 🔌 Custom **Base URL / API key**, switchable protocol (**Gemini** or
-  **OpenAI-compatible**), optional **HTTP proxy**
-- 🤖 Model selector with live model listing (append-only sync with the
-  endpoint's catalog — new models are added, known ones never removed),
-  plus **custom model registration** (custom context window, category,
-  description)
-- 💭 **Thinking bubbles**: readable thought summaries rendered as markdown
-- 🔎 **Search citations**: Google-Search-grounded answers show footnote
-  markers at the cited spans with a collapsible source list
-- 📋 **Paste-to-attach**: paste images / PDF / audio / video / text files
-  straight from the clipboard into the input box
-- ✏️ **Regenerate** a response from any point without affecting later turns
-- 🔀 Conversation **branching / duplication**, context JSON **import & export**
-- 📜 Lazy-loaded history with automatic pagination on scroll-to-top
+## Requirements
 
-### Long-term memory (RAG)
+- macOS 13 or later
+- Xcode Command Line Tools (Swift toolchain)
+- An AI provider, or a local Ollama installation and downloaded model, for AI features
 
-- 🧠 **RAG (Retrieval-Augmented Generation)**: when the sliding window trims
-  older messages out of the context window, the trimmed messages are embedded
-  into vectors and stored in the local database, then semantically retrieved
-  and re-injected into the request — so the model keeps access to early
-  conversation history that no longer fits the window
-- 🔌 Two embedding providers: **API** (your endpoint's OpenAI-compatible
-  `/v1/embeddings` or Gemini embeddings) or **Local** (on-device ONNX model
-  via `@huggingface/transformers`) — the Local provider works even when your
-  relay/gateway offers **no embedding channel at all**
-- 🛡️ RAG cooperates with the sliding window (never replaces it) and degrades
-  gracefully: if embedding or retrieval fails, the chat simply falls back to
-  plain sliding-window behavior
-- ⚙️ Configurable in Run settings → Advanced settings: enable/disable,
-  provider, embedding model, retrieval Top-K (1–20)
+## Build a standalone \`.app\`
 
-### Tools
+From the repository root on a Mac:
 
-- Structured outputs (with a **JSON Schema editor**)
-- Function calling (with a **declarations editor**)
-- Code execution
-- Grounding with Google Search / Google Maps
-- URL context
+\`\`\`bash
+chmod +x scripts/build-macos-app.sh
+./scripts/build-macos-app.sh
+open dist/AIStudio.app
+\`\`\`
 
-### Configuration & Personalization
+The script compiles the Swift package and packages it as \`dist/AIStudio.app\`. The app does not need a Node.js development server. This unsigned build may require macOS to be told to open it, and it is not code-signed or notarized.
 
-- 🎛️ Run settings panel: system instructions, temperature, top-p / top-k,
-  max output tokens, **max context tokens cap**, media resolution, thinking
-  level, safety thresholds per harm category
-- 🗂️ **System instruction templates** (save / apply / manage)
-- 🌗 Theme: **dark / light / system**
-- 🔒 **Password protection** with lock screen (optional, stored locally)
-- 📊 Per-message and per-conversation **token usage** statistics
+To choose another output location:
 
-### Data & Voice
+\`\`\`bash
+./scripts/build-macos-app.sh "$HOME/Applications/AIStudio.app"
+\`\`\`
 
-- 🗄️ **Local SQLite (libsql) database** — conversations, messages, settings
-  and usage are all persisted on disk; the Dashboard shows DB size and contents
-- 🗣️ **Edge-TTS** speech synthesis: multiple voices, adjustable volume / rate /
-  pitch, per-message playback and **auto-read** mode for AI responses
-- 📱 Fully **responsive** — desktop sidebar and mobile drawer layouts
+## Providers
 
-## Demo Screenshots
+Open **Providers & Settings** inside the app:
 
-Representative views of the application (all images live in
-[`Pictures/`](Pictures/)):
+- **Ollama:** base URL defaults to \`http://127.0.0.1:11434/v1\`. Choose a model already installed locally.
+- **OpenRouter:** base URL defaults to \`https://openrouter.ai/api/v1\`. Add your key and fetch the catalog. Some provider listings may offer free-tier models; availability, rate limits, and pricing can change.
+- **NVIDIA API:** base URL defaults to \`https://integrate.api.nvidia.com/v1\`. Add your key and choose a model supported by your account.
+- **OpenAI-compatible:** configure any service exposing the compatible \`/v1/chat/completions\` and \`/v1/models\` endpoints. Custom local and remote endpoints are supported.
 
-| | |
-| --- | --- |
-| ![Home page (dark)](Pictures/HomePage_(Dark).png) | ![Home page (light)](Pictures/HomePage_(Light).png) |
-| *Playground — dark theme* | *Playground — light theme* |
-| ![Dashboard](Pictures/DashboardPage.png) | ![History](Pictures/HistoryPage.png) |
-| *Dashboard — database & usage* | *History — conversation list* |
+AIStudio does not promise every model is free. The provider determines which models the account can access and what limits apply.
 
-<details>
-<summary><b>🖼️ Full screenshot gallery (click to expand)</b></summary>
+## Local project data
 
-### Interface & Themes
+- Provider settings and chat history: \`~/Library/Application Support/AIStudio/state.json\`
+- API keys: macOS Keychain service \`com.aistudio.desktop.providers\`
+- Project files: saved directly to the directory you select
 
-| | |
-| --- | --- |
-| ![Mobile home](Pictures/HomePage_(Phone).png) | ![Mobile sidebar](Pictures/Sidebar_(Phone).png) |
-| *Home — mobile* | *Sidebar — mobile* |
-| ![Chat interface (dark)](Pictures/PromptsPage_(Dark).png) | ![Chat interface (light)](Pictures/PromptsPage_(Light).png) |
-| *Chat interface — dark* | *Chat interface — light* |
+## Important security notes
 
-### Settings & Tools
+AIStudio sends prompts and included project instructions to the provider you select. Do not send confidential material to a remote provider unless its terms and privacy rules are acceptable. The project generator validates relative file paths and asks before replacing existing files; review generated code before running it.
 
-| | |
-| --- | --- |
-| ![Settings window](Pictures/Settings_Window.png) | ![API configuration](Pictures/API_Configuration.png) |
-| *Settings window* | *API configuration* |
-| ![Tool selection](Pictures/Select_Tools.png) | ![System instructions](Pictures/Select_System_Instructions.png) |
-| *Tool selection* | *System instruction templates* |
+## Development status
 
-### Models & Structured Output
-
-| | |
-| --- | --- |
-| ![Model selection](Pictures/Model_Selection.png) | ![Add custom model](Pictures/Add_Custom_Model.png) |
-| *Model selection* | *Add custom model* |
-| ![Structured output editor](Pictures/Edit_Structure.png) | ![Function declarations editor](Pictures/Edit_Function_Declarations.png) |
-| *Structured output Schema editor* | *Function declarations editor* |
-
-### Security
-
-| | |
-| --- | --- |
-| ![Lock screen](Pictures/LockScreenPage.png) | ![Clear password](Pictures/LockScreenPage_(Clear-Password).png) |
-| *Password lock screen* | *Clear password* |
-
-</details>
-
-## Installation
-
-```bash
-git clone https://github.com/SRInternet-Studio/AIStudio.git
-cd AIStudio
-npm install
-npm run dev
-```
-
-Open <http://localhost:3000>, click the **Settings button** at the bottom-left
-of the input box, choose a protocol, enter your Base URL and API key, then
-**select or add a custom model** in the run settings panel (right side) to
-start chatting.
-
-## Configuration
-
-| Item | Where | Notes |
-| --- | --- | --- |
-| Base URL / API key / protocol / proxy | Bottom input box → Settings button (bottom-left) → API configuration | Persisted locally |
-| System instructions & templates | Run settings panel (right side) | Templates saved to DB |
-| RAG long-term memory | Run settings panel → Advanced settings | On by default; use the **Local** provider when your endpoint has no embedding channel |
-| Password protection | Settings window | Optional lock screen |
-| Theme | Settings window | dark / light / system |
-
-## Project Structure
-
-```
-├── src/
-│   ├── app/            # Next.js App Router pages + API routes
-│   │   └── api/        # force-dynamic backend endpoints
-│   ├── components/     # chat, layout, settings, dashboard, documentation
-│   ├── lib/            # db (libsql), api-client, context manager, RAG, models
-│   ├── store/          # Zustand global state
-│   └── types/          # Shared TypeScript types
-├── public/             # Static assets (logo)
-├── Pictures/           # Demo screenshots
-├── Docs/               # Chinese documentation
-└── data/               # Local SQLite database (auto-created)
-```
-
-## Scripts
-
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Start the development server |
-| `npm run build` | Production build |
-| `npm run start` | Serve the production build |
-| `npm run lint` | Run ESLint |
-
-## Documentation
-
-In-app documentation is available under **Manage → Documentation** (English /
-中文 switchable). Source files: [WELCOME](WELCOME.md) ·
-[DEVELOPMENT](DEVELOPMENT.md) · [SECURITY](SECURITY.md) ·
-[CONTRIBUTING](CONTRIBUTING.md) · [CODE_OF_CONDUCT](CODE_OF_CONDUCT.md) ·
-[DISCLAIMER](DISCLAIMER.md) — Chinese versions in [`Docs/`](Docs/).
-
-## Disclaimer
-
-This project is an open-source educational recreation of Google AI Studio.
-It is **not affiliated with Google** and involves **no commercial interests**.
-
-**AI models may make mistakes, so double-check outputs.** See
-[DISCLAIMER](DISCLAIMER.md) for details.
-
-## License
-
-[Apache License v2.0](LICENSE.md).
+This branch replaces the web application entry point with a Swift package and app-bundle build script. It has not yet been compiled or run on a Mac in this environment. Do not treat the app as verified until the native build, provider live tests, project editing, and project generation have been tested on macOS.

@@ -1,61 +1,20 @@
-# Dependencies
-/node_modules
-/.pnp
-.pnp.js
-.yarn/install-state.gz
+# Swift / Xcode
+.build/
+.swiftpm/
+DerivedData/
+*.xcuserstate
+xcuserdata/
 
-# Testing
-/coverage
+# Packaged builds
+dist/
+build/
+*.app/
+*.dmg/
+*.zip
 
-# Next.js
-/.next/
-/out/
-
-# Production
-/build
-
-# Misc
+# Local state and secrets
 .DS_Store
-*.pem
-
-# Debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Local env files
 .env
-.env*.local
-
-# Vercel
-.vercel
-
-# TypeScript
-*.tsbuildinfo
-next-env.d.ts
-
-# Database
-/data/*.db
-/data/*.db-wal
-/data/*.db-shm
-
-# Local RAG embedding model cache (downloaded on demand)
-/data/rag-models/
-
-# IDE
-.vscode/
-.idea/
-.qoder/
-
-# Test screenshots (browser verification artifacts)
-/*.png
-!/AIStudio.png
-test*.png
-verify*.png
-regression*.png
-bug*.png
-h1*.png
-tmp-*.ps1
-
-# Release package
-/release
+.env.*
+*.key
+*.pem
