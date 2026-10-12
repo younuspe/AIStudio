@@ -24,6 +24,40 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Reject web-app scaffolding on the desktop branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          forbidden=(
+            "package.json"
+            "index.html"
+            "vite.config.js"
+            "vite.config.ts"
+            "next.config.js"
+            "next.config.mjs"
+            "next.config.ts"
+            "vercel.json"
+            "netlify.toml"
+            "firebase.json"
+            "Dockerfile"
+            "docker-compose.yml"
+          )
+          for path in "${forbidden[@]}"; do
+            if [[ -e "$path" ]]; then
+              echo "Unexpected web/server scaffold on native desktop branch: $path" >&2
+              exit 1
+            fi
+          done
+          if find .github/workflows -maxdepth 1 -type f ! -name 'native-macos-build.yml' -print -quit | grep -q .; then
+            echo "Unexpected workflow found. Keep this branch's automation native-macOS-only." >&2
+            exit 1
+          fi
+          if find . -maxdepth 1 -type d \( -name 'app' -o -name 'pages' -o -name 'web' -o -name 'frontend' \) -print -quit | grep -q .; then
+            echo "Unexpected web-app directory found at repository root." >&2
+            exit 1
+          fi
+          echo "Native desktop branch is free of root web-app scaffolding."
+
       - name: Select Swift toolchain
         run: |
           swift --version
