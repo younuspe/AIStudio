@@ -76,7 +76,7 @@ struct MainWindow: View {
                         .frame(width: 44, height: 44)
                         .blur(radius: 8)
 
-                    if let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+                    if let iconURL = Bundle.main.url(forResource: "Supru", withExtension: "jpg"),
                        let supruIcon = NSImage(contentsOf: iconURL) {
                         Image(nsImage: supruIcon)
                             .resizable()
