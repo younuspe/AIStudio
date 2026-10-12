@@ -1457,6 +1457,12 @@ enum AIProviderClient {
         size: String,
         sourceImageURL: URL?
     ) async throws -> Data {
+        if provider.id == "gemini" {
+            return try await generateGeminiImage(
+                provider: provider, apiKey: apiKey, modelID: modelID,
+                prompt: prompt, size: size, sourceImageURL: sourceImageURL
+            )
+        }
         guard let endpoint = endpoint(
             baseURL: provider.baseURL,
             suffix: sourceImageURL == nil ? "/images/generations" : "/images/edits"
@@ -1538,10 +1544,86 @@ enum AIProviderClient {
         throw ProviderError.invalidImageResponse
     }
 
+    private static func generateGeminiImage(
+        provider: ProviderConfiguration,
+        apiKey: String,
+        modelID: String,
+        prompt: String,
+        size: String,
+        sourceImageURL: URL?
+    ) async throws -> Data {
+        guard !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw ProviderError.missingAPIKey
+        }
+        var modelName = modelID.trimmingCharacters(in: .whitespacesAndNewlines)
+        if modelName.hasPrefix("models/") { modelName.removeFirst("models/".count) }
+        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.")
+        guard let encodedModel = modelName.addingPercentEncoding(withAllowedCharacters: allowed),
+              let url = endpoint(baseURL: provider.baseURL, suffix: "/models/\(encodedModel):generateContent") else {
+            throw ProviderError.invalidURL(provider.baseURL)
+        }
+
+        var parts: [[String: Any]] = [["text": prompt]]
+        if let sourceImageURL {
+            let imageData = try Data(contentsOf: sourceImageURL)
+            guard !imageData.isEmpty, imageData.count <= 20_000_000 else {
+                throw ProviderError.imageInputTooLarge
+            }
+            let ext = sourceImageURL.pathExtension.lowercased()
+            let mimeType = ext == "jpg" || ext == "jpeg" ? "image/jpeg"
+                : ext == "webp" ? "image/webp"
+                : ext == "heic" ? "image/heic"
+                : "image/png"
+            parts.insert([
+                "inlineData": [
+                    "mimeType": mimeType,
+                    "data": imageData.base64EncodedString()
+                ]
+            ], at: 0)
+        }
+        let aspectRatio = size == "1536x1024" ? "3:2" : size == "1024x1536" ? "2:3" : "1:1"
+        let body: [String: Any] = [
+            "contents": [["role": "user", "parts": parts]],
+            "generationConfig": [
+                "responseModalities": ["TEXT", "IMAGE"],
+                "imageConfig": ["aspectRatio": aspectRatio]
+            ]
+        ]
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 240
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw ProviderError.invalidResponse }
+        guard (200...299).contains(http.statusCode) else {
+            throw ProviderError.httpStatus(http.statusCode, Self.errorDetail(from: data))
+        }
+        let decoded = try JSONDecoder().decode(GeminiCompletionResponse.self, from: data)
+        for part in decoded.candidates?.flatMap({ $0.content?.parts ?? [] }) ?? [] {
+            guard let encoded = part.inlineData?.data,
+                  let imageData = Data(base64Encoded: encoded),
+                  !imageData.isEmpty else { continue }
+            guard imageData.count <= 30_000_000 else { throw ProviderError.imageOutputTooLarge }
+            guard NSImage(data: imageData) != nil else { continue }
+            return imageData
+        }
+        throw ProviderError.invalidImageResponse
+    }
+
     private struct GeminiCompletionResponse: Decodable {
         struct Candidate: Decodable {
             struct Content: Decodable {
-                struct Part: Decodable { let text: String? }
+                struct Part: Decodable {
+                    struct InlineData: Decodable {
+                        let mimeType: String?
+                        let data: String?
+                    }
+                    let text: String?
+                    let inlineData: InlineData?
+                }
                 let parts: [Part]?
             }
             let content: Content?

@@ -357,7 +357,9 @@ struct GenerativeStudioWorkspace: View {
                         }
                         .pickerStyle(.segmented)
 
-                        Text("The chosen provider must implement the OpenAI-compatible /images/generations endpoint. Editing also requires /images/edits. These endpoints may be paid even when the provider offers free chat models.")
+                        Text(model.activeProvider.id == "gemini"
+                             ? "Google Gemini uses its native generateContent endpoint. Select an image-capable Gemini model ID; editing sends the selected source image and prompt to that model. Image generation can have separate quota or billing."
+                             : "The chosen provider must implement the OpenAI-compatible /images/generations endpoint. Editing also requires /images/edits. These endpoints may be paid even when the provider offers free chat models.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
