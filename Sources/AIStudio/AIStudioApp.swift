@@ -7,7 +7,7 @@ struct AIStudioApp: App {
     var body: some Scene {
         WindowGroup {
             MainWindow(model: model)
-                .frame(minWidth: 980, minHeight: 660)
+                .frame(minWidth: 1120, minHeight: 720)
         }
         .windowStyle(.titleBar)
         .commands {

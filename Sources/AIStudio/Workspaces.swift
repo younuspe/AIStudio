@@ -2,8 +2,17 @@ import AppKit
 import SwiftUI
 import WebKit
 
+private enum ChatComposerMode: String, CaseIterable, Identifiable {
+    case chat = "Chat"
+    case build = "Build App"
+    var id: String { rawValue }
+}
+
 struct ChatWorkspace: View {
     @ObservedObject var model: AppModel
+    @State private var composerMode: ChatComposerMode = .chat
+    @StateObject private var voiceInput = VoiceInputController()
+    @State private var draftBeforeDictation = ""
 
     var body: some View {
         HSplitView {
@@ -60,10 +69,25 @@ struct ChatWorkspace: View {
                                     Text("What are you building?")
                                         .font(.title2)
                                         .fontWeight(.semibold)
-                                    Text("Chat with a local Ollama model or configure any OpenAI-compatible provider.")
+                                    Text("Chat, experiment with models, or build a complete app from a description. Generated source files are saved into the project folder you choose.")
                                         .foregroundStyle(.secondary)
                                         .multilineTextAlignment(.center)
                                         .frame(maxWidth: 420)
+                                    HStack(spacing: 8) {
+                                        Button("Build a dashboard") {
+                                            composerMode = .build
+                                            model.inputText = "Build a responsive business dashboard with navigation, reusable components, realistic sample data, accessible layouts, and a README with run instructions. Implement functional interactions, not a static mockup."
+                                        }
+                                        Button("Create a landing page") {
+                                            composerMode = .build
+                                            model.inputText = "Build a complete responsive product landing page with a hero, feature sections, pricing, testimonials, FAQ, and working mobile navigation. Include source files, npm scripts, tests where suitable, and run instructions."
+                                        }
+                                        Button("Make a task manager") {
+                                            composerMode = .build
+                                            model.inputText = "Build a functional task manager with create/edit/delete, status filters, search, local persistence, responsive design, form validation, and tests. Include the complete project folder and README."
+                                        }
+                                    }
+                                    .buttonStyle(.bordered)
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(.top, 100)
@@ -73,10 +97,12 @@ struct ChatWorkspace: View {
                                     ChatMessageRow(message: message).id(message.id)
                                 }
                             }
-                            if model.isSending {
+                            if model.isSending || model.isGeneratingProject {
                                 HStack(spacing: 8) {
                                     ProgressView().controlSize(.small)
-                                    Text("Waiting for the model…").foregroundStyle(.secondary)
+                                    Text(model.isGeneratingProject ? (model.statusMessage ?? "Planning and generating app files…") : "Waiting for the model…")
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(2)
                                 }
                                 .padding(.horizontal, 8)
                             }
@@ -124,30 +150,193 @@ struct ChatWorkspace: View {
                         .padding(.top, 8)
                     }
                 }
-                HStack(alignment: .bottom, spacing: 10) {
-                    Button {
-                        model.attachContextFiles()
-                    } label: {
-                        Image(systemName: "paperclip").font(.system(size: 18))
+                VStack(spacing: 8) {
+                    HStack(spacing: 8) {
+                        Picker("Composer mode", selection: $composerMode) {
+                            ForEach(ChatComposerMode.allCases) { mode in
+                                Text(mode.rawValue).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 190)
+                        Menu {
+                            Button("Explain or debug code") {
+                                composerMode = .chat
+                                model.inputText = "Inspect the relevant code, identify the root cause, explain your changes, and verify the fix using an appropriate test."
+                            }
+                            Button("Build a full dashboard") {
+                                composerMode = .build
+                                model.inputText = "Build a production-minded responsive dashboard with reusable components, realistic data, loading/empty/error states, accessibility, functional controls, tests where suitable, and complete run instructions."
+                            }
+                            Button("Build a CRUD application") {
+                                composerMode = .build
+                                model.inputText = "Create a functional CRUD web app with create/read/update/delete, search, filtering, validation, persistent local data, responsive UI, useful error states, tests, and a README. Include the full project folder and working run/build scripts."
+                            }
+                            Button("Build an e-commerce storefront") {
+                                composerMode = .build
+                                model.inputText = "Build a responsive e-commerce storefront with product listing, search/filter, product details, cart quantity controls, correct totals, and a working demo checkout flow. Include accessible UI, tests where suitable, full source, and honest documentation of demo-only parts."
+                            }
+                            Button("Build a portfolio") {
+                                composerMode = .build
+                                model.inputText = "Create a complete responsive portfolio site with home, projects, about, validated contact form, working mobile navigation, accessible polished UI, and README run instructions. Make every visible control functional."
+                            }
+                            Button("Improve the open app") {
+                                composerMode = .build
+                                model.inputText = "Inspect the selected project folder and improve the existing application without discarding working features. Preserve the current architecture, implement the requested change, and include build/test steps."
+                            }
+                        } label: {
+                            Label("Prompt starters", systemImage: "lightbulb")
+                        }
+                        .menuStyle(.borderlessButton)
+                        Spacer(minLength: 0)
+                        if voiceInput.isRecording {
+                            Text("Listening…").font(.caption).foregroundStyle(.red)
+                        }
+                        if model.workspaceURL != nil {
+                            Button {
+                                if model.previewServerURL != nil {
+                                    model.previewRefreshID = UUID()
+                                } else {
+                                    model.startProjectPreviewServer()
+                                }
+                            } label: {
+                                Label(model.previewServerURL == nil ? "Run Preview" : "Refresh Preview",
+                                      systemImage: model.previewServerURL == nil ? "play.rectangle" : "arrow.clockwise")
+                            }
+                            .disabled(model.isStartingPreviewServer || model.isRunningCommand)
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .help("Attach source or text files as context")
-                    TextField("Message AIStudio…", text: $model.inputText, axis: .vertical)
-                        .lineLimit(1...5)
-                        .textFieldStyle(.plain)
-                        .padding(12)
-                        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
-                        .onSubmit { model.sendMessage() }
-                    Button { model.sendMessage() } label: {
-                        Image(systemName: "arrow.up.circle.fill").font(.system(size: 28))
+                    HStack(alignment: .bottom, spacing: 10) {
+                        Button { model.attachContextFiles() } label: {
+                            Image(systemName: "paperclip").font(.system(size: 18))
+                        }
+                        .buttonStyle(.plain)
+                        .help("Attach source or text files as context")
+
+                        TextField(composerMode == .build ? "Describe the app you want to build…" : "Message AIStudio…",
+                                  text: $model.inputText, axis: .vertical)
+                            .lineLimit(1...5)
+                            .textFieldStyle(.plain)
+                            .padding(12)
+                            .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+                            .onSubmit { submitComposer() }
+
+                        Button {
+                            if voiceInput.isRecording {
+                                voiceInput.stop()
+                            } else {
+                                draftBeforeDictation = model.inputText
+                                voiceInput.start()
+                            }
+                        } label: {
+                            Image(systemName: voiceInput.isRecording ? "stop.circle.fill" : "mic.circle")
+                                .font(.system(size: 27))
+                                .foregroundStyle(voiceInput.isRecording ? Color.red : Color.primary)
+                        }
+                        .buttonStyle(.plain)
+                        .help(voiceInput.isRecording ? "Stop voice input" : "Dictate a prompt")
+                        .disabled(model.isSending || model.isGeneratingProject)
+
+                        Button { submitComposer() } label: {
+                            Image(systemName: composerMode == .build ? "hammer.circle.fill" : "arrow.up.circle.fill")
+                                .font(.system(size: 28))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(model.isSending || model.isGeneratingProject ||
+                                  model.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .help(composerMode == .build ? "Create app from this prompt" : "Send message")
                     }
-                    .buttonStyle(.plain)
-                    .disabled(model.isSending || model.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .help("Send message")
+                    if let voiceError = voiceInput.errorMessage, !voiceError.isEmpty {
+                        Text(voiceError)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
                 .padding(14)
+                .onChange(of: voiceInput.transcript) { transcript in
+                    guard !transcript.isEmpty else { return }
+                    let prefix = draftBeforeDictation.trimmingCharacters(in: .whitespacesAndNewlines)
+                    model.inputText = prefix.isEmpty ? transcript : prefix + " " + transcript
+                }
             }
             .frame(minWidth: 480)
+
+            if model.workspaceURL != nil {
+                VStack(spacing: 0) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("App Preview").font(.headline)
+                            Text(model.previewServerURL?.absoluteString ?? "Local project")
+                                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        }
+                        Spacer()
+                        if model.previewServerURL != nil {
+                            Button { model.previewRefreshID = UUID() } label: {
+                                Image(systemName: "arrow.clockwise")
+                            }
+                            .help("Refresh live preview")
+                        }
+                    }
+                    .padding(12)
+                    Divider()
+                    if let url = model.previewServerURL {
+                        LocalURLPreview(url: url, refreshID: model.previewRefreshID)
+                    } else if let fileURL = model.previewFileURL, let root = model.workspaceURL {
+                        LocalHTMLPreview(fileURL: fileURL, accessRoot: root, refreshID: model.previewRefreshID)
+                    } else {
+                        VStack(spacing: 12) {
+                            Image(systemName: "macwindow.on.rectangle")
+                                .font(.system(size: 34)).foregroundStyle(.secondary)
+                            Text("Your app preview appears here").font(.headline)
+                            Text("Create an app in Build App mode, review its files, then run the local development server. The preview stays inside AIStudio beside your chat.")
+                                .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                            Button { model.startProjectPreviewServer() } label: {
+                                Label("Start Local Preview", systemImage: "play.fill")
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(model.isStartingPreviewServer || model.isPreviewServerRunning)
+                            if model.isStartingPreviewServer { ProgressView("Starting development server…") }
+                            if !model.previewServerLog.isEmpty {
+                                Text(model.previewServerLog)
+                                    .font(.system(.caption, design: .monospaced))
+                                    .textSelection(.enabled).lineLimit(8)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            if let root = model.workspaceURL,
+                               FileManager.default.fileExists(atPath: root.appendingPathComponent("package.json").path) {
+                                Button {
+                                    model.commandText = "npm install && npm run build && npm test --if-present"
+                                    model.selectedSection = .developerTools
+                                    model.runCommand()
+                                } label: {
+                                    Label("Install, Build & Test", systemImage: "checkmark.seal")
+                                }
+                                .buttonStyle(.bordered)
+                                .disabled(model.isRunningCommand || model.isGeneratingProject)
+                                Text("Runs project scripts after you explicitly choose this action.")
+                                    .font(.caption2).foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(20)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                }
+                .frame(minWidth: 300, idealWidth: 430)
+            }
+        }
+        .onChange(of: voiceInput.errorMessage) { error in
+            if let error, !error.isEmpty { model.statusMessage = error }
+        }
+    }
+
+    private func submitComposer() {
+        guard !model.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        if composerMode == .build {
+            if model.createProjectFromChat(model.inputText) { composerMode = .chat }
+        } else {
+            model.sendMessage()
         }
     }
 }
@@ -197,6 +386,11 @@ struct ProjectWorkspace: View {
                 }
                 Spacer()
                 Button("Open Folder…") { model.openWorkspace() }
+                if let projectURL = model.workspaceURL {
+                    Button("Reveal in Finder") {
+                        NSWorkspace.shared.activateFileViewerSelecting([projectURL])
+                    }
+                }
                 Button { model.createNewFile() } label: { Label("New File", systemImage: "doc.badge.plus") }
                     .disabled(model.workspaceURL == nil)
                 Button { model.createNewFolder() } label: { Label("New Folder", systemImage: "folder.badge.plus") }

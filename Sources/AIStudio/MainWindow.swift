@@ -62,7 +62,7 @@ struct MainWindow: View {
                 case .settings: SettingsWorkspace(model: model)
                 }
             }
-            .frame(minWidth: 680, minHeight: 560)
+            .frame(minWidth: 900, minHeight: 560)
         }
         .navigationSplitViewStyle(.balanced)
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in

@@ -734,7 +734,68 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func generateProject() {
+    @discardableResult
+    func createProjectFromChat(_ rawPrompt: String) -> Bool {
+        let prompt = rawPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !prompt.isEmpty, !isGeneratingProject else {
+            if prompt.isEmpty { lastError = "Describe the app you want to create first." }
+            return false
+        }
+
+        if workspaceURL == nil {
+            let panel = NSOpenPanel()
+            panel.title = "Choose the project folder for your new app"
+            panel.message = "Choose an empty folder, or create a new folder in this dialog. Generated source files will be written into this location."
+            panel.canChooseFiles = false
+            panel.canChooseDirectories = true
+            panel.allowsMultipleSelection = false
+            panel.canCreateDirectories = true
+            guard panel.runModal() == .OK, let url = panel.url else {
+                statusMessage = "App creation cancelled. Your prompt is still available in chat."
+                return false
+            }
+            workspaceURL = url.standardizedFileURL
+            refreshWorkspaceFiles()
+            saveState()
+        }
+
+        if activeThreadID == nil {
+            let thread = ChatThread()
+            threads.insert(thread, at: 0)
+            activeThreadID = thread.id
+        }
+        guard let targetID = activeThreadID,
+              let index = threads.firstIndex(where: { $0.id == targetID }) else {
+            lastError = "Could not select the active conversation."
+            return false
+        }
+
+        let previousContext = threads[index].messages.suffix(8).map { message in
+            "\(message.role == "user" ? "User" : "Assistant"): \(message.content)"
+        }.joined(separator: "\n\n")
+        threads[index].messages.append(ChatMessage(role: "user", content: prompt))
+        if threads[index].messages.count == 1 {
+            threads[index].title = String(prompt.prefix(48))
+        }
+        threads[index].modifiedAt = Date()
+        let context = previousContext.isEmpty ? "" : "\n\nRelevant recent chat context:\n\(previousContext)"
+        projectPrompt = """
+        Build a complete, working application from this request.
+        User requirements:
+        \(prompt)
+        \(context)
+        """
+        inputText = ""
+        chatAttachments = []
+        selectedSection = .chat
+        lastError = nil
+        statusMessage = "Starting app generation in \(workspaceURL?.lastPathComponent ?? "the selected folder")…"
+        saveState()
+        generateProject(replyTo: targetID)
+        return true
+    }
+
+    func generateProject(replyTo replyThreadID: UUID? = nil) {
         guard let root = workspaceURL else {
             lastError = "Open a project folder first, then generate into that folder."
             return
@@ -754,9 +815,11 @@ final class AppModel: ObservableObject {
                 You are a senior software architect planning a complete, runnable project.
                 Return ONLY one valid JSON object with this exact shape:
                 {"files":[{"path":"relative/path.ext","purpose":"what this file implements"}]}
-                Plan between 1 and 24 useful files. Include the relevant source code, dependency manifest,
-                build/runtime configuration, README, and starter tests when suitable. Avoid lockfiles,
-                binary assets, generated output, placeholder files, and unnecessary files. Keep all paths relative.
+                Plan between 1 and 60 useful files for a complete, runnable application. Include the actual application UI,
+                functional state and interactions, dependency manifest, runtime/build configuration, README, and starter tests.
+                If the user did not specify a stack, prefer a local web app using React, TypeScript, and Vite with npm scripts.
+                Do not produce a static visual-only mockup or placeholder handlers. All visible controls must perform their
+                described actions. Keep all paths relative; avoid generated output, binary assets, lockfiles, and unnecessary files.
                 Do not output Markdown fences or explanation outside JSON.
                 """
                 let planReply = try await AIProviderClient.complete(
@@ -771,7 +834,7 @@ final class AppModel: ObservableObject {
                     throw AppModelError.invalidProjectJSON
                 }
                 let plan = try JSONDecoder().decode(GeneratedProjectPlan.self, from: planData)
-                guard !plan.files.isEmpty, plan.files.count <= 24 else {
+                guard !plan.files.isEmpty, plan.files.count <= 60 else {
                     throw AppModelError.invalidProjectPlan
                 }
 
@@ -799,7 +862,10 @@ final class AppModel: ObservableObject {
                     Return ONLY valid JSON in this shape:
                     {"files":[{"path":"relative/path.ext","content":"complete file content"}]}
                     Generate the complete contents for every requested file, with correct JSON escaping.
-                    Include working implementations, error handling, dependency manifests, and config as appropriate.
+                    Implement all described interactions and real application behavior, not just a visual scaffold.
+                    Include error/loading/empty states, input validation, reasonable accessibility, and tests where suitable.
+                    Include dependency manifests and accurate dev/build/test scripts. Do not invent credentials or claim a
+                    backend exists when it does not; use an honest local implementation if no backend was specified.
                     Return every requested path exactly once, do not add unrequested paths, do not use Markdown fences,
                     and do not place explanatory text outside the JSON object.
                     """
@@ -913,11 +979,31 @@ final class AppModel: ObservableObject {
                 refreshWorkspaceFiles()
                 isGeneratingProject = false
                 statusMessage = "Generated and saved \(prepared.count) project files."
-                selectedSection = .projects
+                selectedSection = .chat
+                if let replyThreadID {
+                    let listedFiles = prepared.prefix(40).map { "- \($0.0.path.replacingOccurrences(of: root.path + "/", with: ""))" }.joined(separator: "\n")
+                    let extra = prepared.count > 40 ? "\n- …and \(prepared.count - 40) more file(s)" : ""
+                    let summary = """
+                    ## App files generated
+
+                    Successfully wrote \(prepared.count) project file(s) to:
+
+                    \(root.path)
+
+                    \(listedFiles)\(extra)
+
+                    **Next:** Open the Preview pane to run the application locally. Review generated scripts and dependencies before running them. File generation is not proof that the app builds or functions correctly; use Install, Build & Test to verify a Node-based web app.
+                    """
+                    append(summary, role: "assistant", to: replyThreadID)
+                }
                 saveState()
             } catch {
                 isGeneratingProject = false
                 lastError = "Project generation failed: \(error.localizedDescription)"
+                if let replyThreadID {
+                    append("## App generation failed\n\n\(error.localizedDescription)", role: "assistant", to: replyThreadID)
+                    saveState()
+                }
             }
         }
     }
@@ -1047,7 +1133,6 @@ final class AppModel: ObservableObject {
                             self.previewRefreshID = UUID()
                             self.lastError = nil
                             self.statusMessage = "Live project preview is ready at \(url.absoluteString)."
-                            self.selectedSection = .visualEditor
                             return
                         }
                     } catch {

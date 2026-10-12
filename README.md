@@ -5,13 +5,13 @@ AIStudio is being rebuilt as a standalone macOS application using SwiftUI and Ap
 ## Current native foundation
 
 - Native macOS window, sidebar, menus, and keyboard shortcuts.
-- Chat with conversation history saved locally.
+- Chat with locally persisted conversation history, app-building prompt starters, and macOS voice dictation into the editable prompt.
 - Local Ollama support plus configurable NVIDIA, OpenRouter, OpenAI, and generic OpenAI-compatible endpoints.
 - Provider model catalog lookup and free-tier filtering for model IDs ending in :free when the provider reports those IDs.
 - API keys stored in macOS Keychain, not in the application state JSON.
 - Open a local project folder, browse files, create folders and files, rename/delete files, edit UTF-8 text, and save changes.
 - Attach up to eight source/text files to a chat message, with per-file and total context limits.
-- Generate a project in stages: plan the file tree, generate up to 24 files in batches of three, validate paths and duplicates, ask before overwrite, and roll back successfully written targets if a later write fails.
+- Create an app directly from Chat, select a destination folder, generate up to 60 source files, validate paths and duplicates, confirm overwrites, report the file list in the same conversation, reveal the full project in Finder, and preview from beside chat.
 - Native Generative Studio for prompt-to-image and source-image edits through compatible image endpoints, then save the result as a local PNG.
 - Visual property controls that write CSS overrides into an HTML entry page, including Vite-style projects.
 - Live preview of static HTML or a project dev server configured to listen on loopback.
@@ -22,7 +22,7 @@ AIStudio is being rebuilt as a standalone macOS application using SwiftUI and Ap
 
 This is the native desktop foundation, not a claim that every planned advanced editing feature is complete. The project editor is a text editor; full Photoshop/Figma-grade semantic editing, unrestricted cross-format document editing, and a full multi-agent orchestration engine are not yet implemented in this native rewrite.
 
-Image generation/editing requires the selected provider to implement OpenAI-compatible /images/generations or /images/edits routes. A provider's free chat models do not imply that image calls are free. AIStudio will show provider errors instead of reporting simulated artwork as a successful result.
+Image generation/editing requires the selected provider to implement OpenAI-compatible /images/generations or /images/edits routes. A provider's free chat models do not imply that image calls are free. Voice dictation requires macOS speech-recognition and microphone permission. Generated application files are not considered verified just because they were written: review them, install dependencies, run the app, and pass the app's build/tests. The Chat preview offers an explicit Install, Build & Test action for Node-based projects.
 
 ## Build a standalone macOS app
 

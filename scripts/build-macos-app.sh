@@ -81,6 +81,10 @@ cat > "$OUTPUT/Contents/Info.plist" <<'PLIST'
     <string>13.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>AIStudio uses the microphone only when you choose voice dictation.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>AIStudio converts your dictated prompt into editable text.</string>
 </dict>
 </plist>
 PLIST
