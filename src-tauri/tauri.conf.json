@@ -32,6 +32,9 @@
       "icons/icon.png",
       "icons/SupruStud-AppIcon.icns"
     ],
-    "category": "DeveloperTool"
+    "category": "DeveloperTool",
+    "macOS": {
+      "signingIdentity": "-"
+    }
   }
 }
