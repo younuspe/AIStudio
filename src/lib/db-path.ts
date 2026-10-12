@@ -10,7 +10,9 @@ export function resolveDatabasePath(
   workingDirectory = process.cwd(),
 ): string {
   const directory = dataDirectory
-    ? path.resolve(dataDirectory)
+    ? (path.isAbsolute(dataDirectory)
+        ? dataDirectory
+        : path.resolve(workingDirectory, dataDirectory))
     : path.join(workingDirectory, "data");
   return path.join(directory, "ai-studio.db");
 }
