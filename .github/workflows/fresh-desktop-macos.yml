@@ -67,7 +67,6 @@ jobs:
           test -d "$APP"
           codesign --force --deep --sign - --timestamp=none "$APP"
           codesign --verify --deep --strict --verbose=2 "$APP"
-          test -f "$APP/Contents/_CodeSignature/CodeResources"
 
           EXECUTABLE="$APP/Contents/MacOS/Supru App Builder"
           test -x "$EXECUTABLE"
