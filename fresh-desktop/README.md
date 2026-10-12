@@ -1,6 +1,6 @@
-# AI Studio Desktop — Fresh Rebuild
+# Supru App Builder — Native macOS App
 
-An independent native macOS desktop-app implementation in `fresh-desktop/`. The branch has been cleaned of the previous web app's source, dependency manifests, and web-only documentation so the desktop build is the focus.
+Supru App Builder is a native macOS desktop-app implementation in `fresh-desktop/`. This branch keeps the desktop build separate from the older web application's runtime.
 
 ## Reference designs and branding
 
@@ -8,17 +8,18 @@ An independent native macOS desktop-app implementation in `fresh-desktop/`. The 
 - [Reference 02](../Ref-02.jpeg)
 - [Reference 03](../Ref-03.jpeg)
 
-The interface is guided by these references and should use the project's own Supru cat artwork, not Google's official logo.
+The interface follows these references and uses the project's own Supru cat artwork, not Google's official logo.
 
 ## Current implementation scope
 
 - Tauri 2 desktop shell and macOS app/DMG packaging.
-- Workspace layout with prompt/chat, preview, code editor, and project-file list.
+- Workspace with prompt/chat, live preview, code editor, and project-file list.
+- Build, Ask, and Plan interaction modes.
 - OpenAI-compatible `/chat/completions` endpoint configuration.
 - Ollama-compatible local endpoint option.
-- Single-file HTML generation, code editing, live preview, and HTML export.
+- Single-file HTML generation, source editing, live preview, visual element editing, and ZIP project export.
 
-This is still a work in progress, not a claim of full Google AI Studio feature parity or production readiness. Provider calls, API-key storage, preview isolation, and the packaged application need end-to-end verification.
+This is still a work in progress, not a claim of full Google AI Studio feature parity or production readiness. Provider calls, API-key storage, session persistence, preview isolation, ZIP exports, and the packaged application need end-to-end verification.
 
 ## Build on macOS
 
@@ -36,7 +37,7 @@ The GitHub Actions workflow is `.github/workflows/fresh-desktop-macos.yml`. It b
 
 ```
 fresh-desktop/
-  ui/             # Desktop frontend and artwork
+  ui/             # Desktop frontend and Supru artwork
   src-tauri/      # Tauri/Rust shell and bundle configuration
   package.json    # Desktop build scripts
 .github/workflows/
@@ -54,4 +55,4 @@ Ref-03.jpeg
 
 ## License
 
-See [LICENSE.md](../LICENSE.md).
+See [LICENSE.md](../LICENSE.md)
