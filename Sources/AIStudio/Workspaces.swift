@@ -304,23 +304,32 @@ struct ChatWorkspace: View {
                                     .textSelection(.enabled).lineLimit(8)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                             }
-                            if let root = model.workspaceURL,
-                               FileManager.default.fileExists(atPath: root.appendingPathComponent("package.json").path) {
-                                Button {
-                                    model.commandText = "npm install && npm run build && npm test --if-present"
-                                    model.selectedSection = .developerTools
-                                    model.runCommand()
-                                } label: {
-                                    Label("Install, Build & Test", systemImage: "checkmark.seal")
-                                }
-                                .buttonStyle(.bordered)
-                                .disabled(model.isRunningCommand || model.isGeneratingProject)
-                                Text("Runs project scripts after you explicitly choose this action.")
-                                    .font(.caption2).foregroundStyle(.secondary)
-                            }
+
                         }
                         .padding(20)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                    if let root = model.workspaceURL,
+                       FileManager.default.fileExists(atPath: root.appendingPathComponent("package.json").path) {
+                        Divider()
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Build verification").font(.caption.weight(.semibold))
+                                Text("Installs declared dependencies, then runs build and test scripts.")
+                                    .font(.caption2).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button {
+                                model.commandText = "npm install && npm run build && npm test --if-present"
+                                model.selectedSection = .developerTools
+                                model.runCommand()
+                            } label: {
+                                Label("Install, Build & Test", systemImage: "checkmark.seal")
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(model.isRunningCommand || model.isGeneratingProject)
+                        }
+                        .padding(10)
                     }
                 }
                 .frame(minWidth: 300, idealWidth: 430)

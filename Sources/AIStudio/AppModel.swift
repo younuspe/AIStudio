@@ -43,6 +43,7 @@ struct ProviderConfiguration: Identifiable, Codable, Equatable {
         [
             ProviderConfiguration(id: "ollama", name: "Ollama (Local)", baseURL: "http://127.0.0.1:11434/v1", model: "qwen2.5-coder:7b"),
             ProviderConfiguration(id: "openrouter", name: "OpenRouter", baseURL: "https://openrouter.ai/api/v1", model: ""),
+            ProviderConfiguration(id: "gemini", name: "Google Gemini API", baseURL: "https://generativelanguage.googleapis.com/v1beta", model: ""),
             ProviderConfiguration(id: "nvidia", name: "NVIDIA API", baseURL: "https://integrate.api.nvidia.com/v1", model: "nvidia/nemotron-3.5-lightning-30b-a3b"),
             ProviderConfiguration(id: "openai-compatible", name: "OpenAI-compatible", baseURL: "https://api.openai.com/v1", model: "")
         ]
@@ -1320,7 +1321,11 @@ final class AppModel: ObservableObject {
     private func loadState() {
         guard let data = try? Data(contentsOf: stateURL),
               let state = try? JSONDecoder().decode(PersistedState.self, from: data) else { return }
-        providers = state.providers
+        var restoredProviders = state.providers
+        for standard in ProviderConfiguration.defaults where !restoredProviders.contains(where: { $0.id == standard.id }) {
+            restoredProviders.append(standard)
+        }
+        providers = restoredProviders
         selectedProviderID = state.selectedProviderID
         threads = state.threads
         activeThreadID = state.activeThreadID
@@ -1377,7 +1382,7 @@ private enum AppModelError: LocalizedError {
     }
 }
 
-private enum KeychainStore {
+enum KeychainStore {
     private static let service = "com.aistudio.desktop.providers"
 
     static func read(account: String) -> String? {
@@ -1422,7 +1427,7 @@ private enum KeychainStore {
     }
 }
 
-private enum AIProviderClient {
+enum AIProviderClient {
     private struct ModelList: Decodable {
         struct Item: Decodable { let id: String }
         let data: [Item]
@@ -1533,12 +1538,44 @@ private enum AIProviderClient {
         throw ProviderError.invalidImageResponse
     }
 
-    static func complete(provider: ProviderConfiguration, apiKey: String, messages: [ChatMessage]) async throws -> String {
-        guard let url = endpoint(baseURL: provider.baseURL, suffix: "/chat/completions") else {
-            throw ProviderError.invalidURL(provider.baseURL)
+    private struct GeminiCompletionResponse: Decodable {
+        struct Candidate: Decodable {
+            struct Content: Decodable {
+                struct Part: Decodable { let text: String? }
+                let parts: [Part]?
+            }
+            let content: Content?
         }
+        let candidates: [Candidate]?
+    }
+
+    private struct GeminiModelList: Decodable {
+        struct Item: Decodable {
+            let name: String
+            let supportedGenerationMethods: [String]?
+        }
+        let models: [Item]?
+    }
+
+    static func complete(
+        provider: ProviderConfiguration,
+        apiKey: String,
+        messages: [ChatMessage],
+        temperature: Double = 0.7,
+        topP: Double? = nil,
+        maxTokens: Int? = nil
+    ) async throws -> String {
         guard !provider.model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw ProviderError.missingModel
+        }
+        if provider.id == "gemini" {
+            return try await completeGemini(
+                provider: provider, apiKey: apiKey, messages: messages,
+                temperature: temperature, topP: topP, maxTokens: maxTokens
+            )
+        }
+        guard let url = endpoint(baseURL: provider.baseURL, suffix: "/chat/completions") else {
+            throw ProviderError.invalidURL(provider.baseURL)
         }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -1546,12 +1583,14 @@ private enum AIProviderClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if !apiKey.isEmpty { request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization") }
         if provider.id == "openrouter" { request.setValue("AIStudio", forHTTPHeaderField: "X-Title") }
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "model": provider.model,
             "messages": messages.map { ["role": $0.role, "content": $0.content] },
             "stream": false,
-            "temperature": 0.7
+            "temperature": max(0, min(2, temperature))
         ]
+        if let topP { body["top_p"] = max(0, min(1, topP)) }
+        if let maxTokens { body["max_tokens"] = max(1, min(32768, maxTokens)) }
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw ProviderError.invalidResponse }
@@ -1559,8 +1598,67 @@ private enum AIProviderClient {
             throw ProviderError.httpStatus(http.statusCode, Self.errorDetail(from: data))
         }
         let decoded = try JSONDecoder().decode(CompletionResponse.self, from: data)
-        guard let content = decoded.choices.first?.message.content, !content.isEmpty else { throw ProviderError.emptyResponse }
+        guard let content = decoded.choices.first?.message.content, !content.isEmpty else {
+            throw ProviderError.emptyResponse
+        }
         return content
+    }
+
+    private static func completeGemini(
+        provider: ProviderConfiguration,
+        apiKey: String,
+        messages: [ChatMessage],
+        temperature: Double,
+        topP: Double?,
+        maxTokens: Int?
+    ) async throws -> String {
+        guard !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw ProviderError.missingAPIKey
+        }
+        var modelName = provider.model.trimmingCharacters(in: .whitespacesAndNewlines)
+        if modelName.hasPrefix("models/") { modelName.removeFirst("models/".count) }
+        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.")
+        guard let encodedModel = modelName.addingPercentEncoding(withAllowedCharacters: allowed),
+              let url = endpoint(baseURL: provider.baseURL, suffix: "/models/\(encodedModel):generateContent") else {
+            throw ProviderError.invalidURL(provider.baseURL)
+        }
+
+        let systemText = messages.filter { $0.role == "system" }.map(\.content).joined(separator: "\n\n")
+        let contents: [[String: Any]] = messages
+            .filter { $0.role != "system" }
+            .map { message in
+                [
+                    "role": message.role == "assistant" ? "model" : "user",
+                    "parts": [["text": message.content]]
+                ]
+            }
+        guard !contents.isEmpty else { throw ProviderError.emptyResponse }
+        var generation: [String: Any] = ["temperature": max(0, min(2, temperature))]
+        if let topP { generation["topP"] = max(0.05, min(1, topP)) }
+        if let maxTokens { generation["maxOutputTokens"] = max(1, min(32768, maxTokens)) }
+        var body: [String: Any] = ["contents": contents, "generationConfig": generation]
+        if !systemText.isEmpty { body["systemInstruction"] = ["parts": [["text": systemText]]] }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 180
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw ProviderError.invalidResponse }
+        guard (200...299).contains(http.statusCode) else {
+            throw ProviderError.httpStatus(http.statusCode, Self.errorDetail(from: data))
+        }
+        let decoded = try JSONDecoder().decode(GeminiCompletionResponse.self, from: data)
+        let text = decoded.candidates?
+            .flatMap { $0.content?.parts ?? [] }
+            .compactMap(\.text)
+            .joined(separator: "")
+        guard let text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw ProviderError.emptyResponse
+        }
+        return text
     }
 
     static func listModels(provider: ProviderConfiguration, apiKey: String) async throws -> [String] {
@@ -1570,11 +1668,25 @@ private enum AIProviderClient {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.timeoutInterval = 45
-        if !apiKey.isEmpty { request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization") }
+        if provider.id == "gemini" {
+            guard !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw ProviderError.missingAPIKey
+            }
+            request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
+        } else if !apiKey.isEmpty {
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw ProviderError.invalidResponse }
         guard (200...299).contains(http.statusCode) else {
             throw ProviderError.httpStatus(http.statusCode, Self.errorDetail(from: data))
+        }
+        if provider.id == "gemini" {
+            let decoded = try JSONDecoder().decode(GeminiModelList.self, from: data)
+            return (decoded.models ?? [])
+                .filter { $0.supportedGenerationMethods?.contains("generateContent") ?? true }
+                .map { $0.name.hasPrefix("models/") ? String($0.name.dropFirst("models/".count)) : $0.name }
+                .sorted()
         }
         let decoded = try JSONDecoder().decode(ModelList.self, from: data)
         return decoded.data.map(\.id)
@@ -1602,6 +1714,7 @@ private enum AIProviderClient {
 private enum ProviderError: LocalizedError {
     case invalidURL(String)
     case missingModel
+    case missingAPIKey
     case invalidResponse
     case emptyResponse
     case invalidImageResponse
@@ -1613,6 +1726,7 @@ private enum ProviderError: LocalizedError {
         switch self {
         case .invalidURL(let value): return "Invalid provider URL: \(value)"
         case .missingModel: return "Choose a model ID in Providers & Settings first."
+        case .missingAPIKey: return "Enter and save an API key for Google Gemini in Providers & Settings."
         case .invalidResponse: return "The provider returned an invalid HTTP response."
         case .emptyResponse: return "The provider response did not contain assistant text."
         case .invalidImageResponse: return "The provider response did not contain a supported image. This endpoint must return data[].b64_json or a secure HTTPS image URL."

@@ -8,7 +8,7 @@ struct SettingsWorkspace: View {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 5) {
                     Text("Providers & Settings").font(.largeTitle).fontWeight(.bold)
-                    Text("Connect local models or any OpenAI-compatible API. Provider URLs, model IDs, and conversation history are stored locally.")
+                    Text("Connect Google Gemini directly through its native API, local models, NVIDIA, OpenRouter, OpenAI, or configurable OpenAI-compatible endpoints. Keys are stored in macOS Keychain.")
                         .foregroundStyle(.secondary)
                 }
 
