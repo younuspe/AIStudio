@@ -1,196 +1,71 @@
-# <img src="AIStudio.png" width="35" alt="AI Studio logo" /> AI Studio
+# <img src="Supru.ico" width="64" alt="Supru icon" /> Supru App Builder — Native macOS Desktop App
 
-AI Studio recreates the playground interface and interaction experience of
-Google AI Studio as a fully self-hosted web application. You can configure any
-**Gemini** or **OpenAI-compatible** endpoint (custom Base URL, API key, proxy),
-and all your data is stored in a **local embedded SQLite (libsql) database** —
-nothing ever leaves your machine except the requests you send to your own API
-endpoint.
+Supru App Builder is a standalone macOS application using SwiftUI and AppKit. Its own interface is native; it does not wrap a website, start Next.js, or require a browser.
 
-This project is an **unofficial, educational open-source recreation** of the
-Google AI Studio interface, built with Next.js 14. It is for **learning and
-research purposes only** — it is not affiliated with, endorsed by, or sponsored
-by Google, and it involves no commercial interests whatsoever.
+## Current native foundation
 
-## Features
+- Native macOS window, sidebar, menus, and keyboard shortcuts.
+- Chat with locally persisted conversation history, app-building prompt starters, and macOS voice dictation into the editable prompt.
+- Local Ollama, native Google Gemini API, NVIDIA, OpenRouter, OpenAI, and generic OpenAI-compatible endpoints with configurable model IDs.
+- Provider model catalog lookup and free-tier filtering for model IDs ending in :free when the provider reports those IDs.
+- API keys stored in macOS Keychain, not in the application state JSON.
+- Open a local project folder, browse files, create folders and files, rename/delete files, edit UTF-8 text, and save changes.
+- Attach up to eight source/text files to a chat message, with per-file and total context limits.
+- Create an app directly from Chat, select a destination folder, generate up to 60 source files, validate paths and duplicates, confirm overwrites, report the file list in the same conversation, reveal the full project in Finder, and preview from beside chat.
+- Generative Studio with a model playground (system instructions, temperature, top-p, output-token limits, model comparisons, saved/exportable runs), Image Studio with OpenAI-compatible or native Gemini image generation/editing where supported, and local PNG export.
+- Visual property controls that write CSS overrides into an HTML entry page, including Vite-style projects.
+- Live preview of static HTML or a project dev server configured to listen on loopback.
+- Developer console for commands the user explicitly enters and runs.
+- No sign-in or password gate.
 
-### Core Playground
+## Important limitations
 
-- 💬 Streaming (SSE) and non-streaming chat completions
-- 🔌 Custom **Base URL / API key**, switchable protocol (**Gemini** or
-  **OpenAI-compatible**), optional **HTTP proxy**
-- 🤖 Model selector with live model listing (append-only sync with the
-  endpoint's catalog — new models are added, known ones never removed),
-  plus **custom model registration** (custom context window, category,
-  description)
-- 💭 **Thinking bubbles**: readable thought summaries rendered as markdown
-- 🔎 **Search citations**: Google-Search-grounded answers show footnote
-  markers at the cited spans with a collapsible source list
-- 📋 **Paste-to-attach**: paste images / PDF / audio / video / text files
-  straight from the clipboard into the input box
-- ✏️ **Regenerate** a response from any point without affecting later turns
-- 🔀 Conversation **branching / duplication**, context JSON **import & export**
-- 📜 Lazy-loaded history with automatic pagination on scroll-to-top
+This is the native desktop foundation, not a claim that every planned advanced editing feature is complete. The project editor is a text editor; full Photoshop/Figma-grade semantic editing, unrestricted cross-format document editing, and a full multi-agent orchestration engine are not yet implemented in this native rewrite.
 
-### Long-term memory (RAG)
+Image generation/editing requires a model/provider that supports image output: OpenAI-compatible providers use /images/generations or /images/edits; Google Gemini uses its native generateContent endpoint. Not every text model supports image output, and free chat access does not imply free image generation. Voice dictation requires macOS microphone and speech-recognition permissions. Generated apps still require review, dependency installation, and build/test verification; file generation alone is not proof of functionality. Supru App Builder reports provider errors rather than simulated success.
 
-- 🧠 **RAG (Retrieval-Augmented Generation)**: when the sliding window trims
-  older messages out of the context window, the trimmed messages are embedded
-  into vectors and stored in the local database, then semantically retrieved
-  and re-injected into the request — so the model keeps access to early
-  conversation history that no longer fits the window
-- 🔌 Two embedding providers: **API** (your endpoint's OpenAI-compatible
-  `/v1/embeddings` or Gemini embeddings) or **Local** (on-device ONNX model
-  via `@huggingface/transformers`) — the Local provider works even when your
-  relay/gateway offers **no embedding channel at all**
-- 🛡️ RAG cooperates with the sliding window (never replaces it) and degrades
-  gracefully: if embedding or retrieval fails, the chat simply falls back to
-  plain sliding-window behavior
-- ⚙️ Configurable in Run settings → Advanced settings: enable/disable,
-  provider, embedding model, retrieval Top-K (1–20)
+## Install the macOS app
 
-### Tools
+Download the latest **Supru App Builder macOS installer (.dmg)** from the [Actions workflow artifacts](https://github.com/younuspe/AIStudio/actions/workflows/native-macos-build.yml?query=branch%3Adesktop-productization). Open the DMG and drag **Supru App Builder.app** into **Applications**. On first launch, because this build is not Apple-notarized, Control-click the app in Finder and choose **Open** if macOS blocks it.
 
-- Structured outputs (with a **JSON Schema editor**)
-- Function calling (with a **declarations editor**)
-- Code execution
-- Grounding with Google Search / Google Maps
-- URL context
+## Build a standalone macOS app
 
-### Configuration & Personalization
+Requirements: macOS 13 or later and the Swift toolchain/Xcode Command Line Tools.
 
-- 🎛️ Run settings panel: system instructions, temperature, top-p / top-k,
-  max output tokens, **max context tokens cap**, media resolution, thinking
-  level, safety thresholds per harm category
-- 🗂️ **System instruction templates** (save / apply / manage)
-- 🌗 Theme: **dark / light / system**
-- 🔒 **Password protection** with lock screen (optional, stored locally)
-- 📊 Per-message and per-conversation **token usage** statistics
+From the repository root on a Mac:
 
-### Data & Voice
+    chmod +x scripts/build-macos-app.sh
+    ./scripts/build-macos-app.sh
+    open "dist/Supru App Builder.app"
 
-- 🗄️ **Local SQLite (libsql) database** — conversations, messages, settings
-  and usage are all persisted on disk; the Dashboard shows DB size and contents
-- 🗣️ **Edge-TTS** speech synthesis: multiple voices, adjustable volume / rate /
-  pitch, per-message playback and **auto-read** mode for AI responses
-- 📱 Fully **responsive** — desktop sidebar and mobile drawer layouts
+The build script compiles arm64 and x86_64 Swift executables and combines them into a Universal 2 dist/Supru App Builder.app, so the same build supports Apple Silicon and Intel Macs. Supru App Builder's own UI does not require a Node.js development server. The build is locally ad-hoc signed and not Apple-notarized. The packaging script embeds the original Supru Stud `AppIcon.icns` from a pinned commit when no local `assets/AppIcon.icns` is present. The icon is bundled into the app; it is not fetched at runtime. On first launch, try Control-clicking the app in Finder and choosing Open. Because the app is not notarized, Gatekeeper may still block it; ad-hoc signing fixes bundle integrity but does not replace Apple Developer ID signing and notarization.
 
-## Demo Screenshots
+To choose another output location:
 
-Representative views of the application (all images live in
-[`Pictures/`](Pictures/)):
+    ./scripts/build-macos-app.sh "$HOME/Applications/Supru App Builder.app"
 
-| | |
-| --- | --- |
-| ![Home page (dark)](Pictures/HomePage_(Dark).png) | ![Home page (light)](Pictures/HomePage_(Light).png) |
-| *Playground — dark theme* | *Playground — light theme* |
-| ![Dashboard](Pictures/DashboardPage.png) | ![History](Pictures/HistoryPage.png) |
-| *Dashboard — database & usage* | *History — conversation list* |
+## Provider setup
 
-<details>
-<summary><b>🖼️ Full screenshot gallery (click to expand)</b></summary>
+Open Providers & Settings inside the app.
 
-### Interface & Themes
+- Ollama: the default endpoint is http://127.0.0.1:11434/v1. Select a model already installed locally.
+- OpenRouter: the default endpoint is https://openrouter.ai/api/v1. Add your key and fetch its model list. Some model IDs may end in :free; availability and limits can change.
+- NVIDIA: the default endpoint is https://integrate.api.nvidia.com/v1. Add your key and select a model available to your account.
+- OpenAI-compatible: configure any service that implements /v1/chat/completions and /v1/models. Custom local and remote endpoints are supported.
 
-| | |
-| --- | --- |
-| ![Mobile home](Pictures/HomePage_(Phone).png) | ![Mobile sidebar](Pictures/Sidebar_(Phone).png) |
-| *Home — mobile* | *Sidebar — mobile* |
-| ![Chat interface (dark)](Pictures/PromptsPage_(Dark).png) | ![Chat interface (light)](Pictures/PromptsPage_(Light).png) |
-| *Chat interface — dark* | *Chat interface — light* |
+A provider's pricing, free quota, model access, and endpoint compatibility are determined by that provider, not AIStudio.
 
-### Settings & Tools
+## Local data
 
-| | |
-| --- | --- |
-| ![Settings window](Pictures/Settings_Window.png) | ![API configuration](Pictures/API_Configuration.png) |
-| *Settings window* | *API configuration* |
-| ![Tool selection](Pictures/Select_Tools.png) | ![System instructions](Pictures/Select_System_Instructions.png) |
-| *Tool selection* | *System instruction templates* |
+- Provider settings and chat history: ~/Library/Application Support/AIStudio/state.json
+- API keys: macOS Keychain service com.aistudio.desktop.providers
+- Project files: saved directly to the directory you select
+- Preview server logs: ~/Library/Application Support/AIStudio/project-preview.log
 
-### Models & Structured Output
+Review generated code and shell commands before executing them. Chat attachments and project prompts may contain private material; remote providers receive the contents sent with your request.
 
-| | |
-| --- | --- |
-| ![Model selection](Pictures/Model_Selection.png) | ![Add custom model](Pictures/Add_Custom_Model.png) |
-| *Model selection* | *Add custom model* |
-| ![Structured output editor](Pictures/Edit_Structure.png) | ![Function declarations editor](Pictures/Edit_Function_Declarations.png) |
-| *Structured output Schema editor* | *Function declarations editor* |
+## Workflow isolation and status
 
-### Security
+All current desktop work is on the separate branch named desktop-productization in the AIStudio repository. The GitHub Actions build is configured only for pushes to that branch or a manual dispatch. It does not run for pull requests, and no pull request is created automatically. Commits made to this branch update the fork's branch only; they do not update the parent repository's public branch.
 
-| | |
-| --- | --- |
-| ![Lock screen](Pictures/LockScreenPage.png) | ![Clear password](Pictures/LockScreenPage_(Clear-Password).png) |
-| *Password lock screen* | *Clear password* |
-
-</details>
-
-## Installation
-
-```bash
-git clone https://github.com/SRInternet-Studio/AIStudio.git
-cd AIStudio
-npm install
-npm run dev
-```
-
-Open <http://localhost:3000>, click the **Settings button** at the bottom-left
-of the input box, choose a protocol, enter your Base URL and API key, then
-**select or add a custom model** in the run settings panel (right side) to
-start chatting.
-
-## Configuration
-
-| Item | Where | Notes |
-| --- | --- | --- |
-| Base URL / API key / protocol / proxy | Bottom input box → Settings button (bottom-left) → API configuration | Persisted locally |
-| System instructions & templates | Run settings panel (right side) | Templates saved to DB |
-| RAG long-term memory | Run settings panel → Advanced settings | On by default; use the **Local** provider when your endpoint has no embedding channel |
-| Password protection | Settings window | Optional lock screen |
-| Theme | Settings window | dark / light / system |
-
-## Project Structure
-
-```
-├── src/
-│   ├── app/            # Next.js App Router pages + API routes
-│   │   └── api/        # force-dynamic backend endpoints
-│   ├── components/     # chat, layout, settings, dashboard, documentation
-│   ├── lib/            # db (libsql), api-client, context manager, RAG, models
-│   ├── store/          # Zustand global state
-│   └── types/          # Shared TypeScript types
-├── public/             # Static assets (logo)
-├── Pictures/           # Demo screenshots
-├── Docs/               # Chinese documentation
-└── data/               # Local SQLite database (auto-created)
-```
-
-## Scripts
-
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Start the development server |
-| `npm run build` | Production build |
-| `npm run start` | Serve the production build |
-| `npm run lint` | Run ESLint |
-
-## Documentation
-
-In-app documentation is available under **Manage → Documentation** (English /
-中文 switchable). Source files: [WELCOME](WELCOME.md) ·
-[DEVELOPMENT](DEVELOPMENT.md) · [SECURITY](SECURITY.md) ·
-[CONTRIBUTING](CONTRIBUTING.md) · [CODE_OF_CONDUCT](CODE_OF_CONDUCT.md) ·
-[DISCLAIMER](DISCLAIMER.md) — Chinese versions in [`Docs/`](Docs/).
-
-## Disclaimer
-
-This project is an open-source educational recreation of Google AI Studio.
-It is **not affiliated with Google** and involves **no commercial interests**.
-
-**AI models may make mistakes, so double-check outputs.** See
-[DISCLAIMER](DISCLAIMER.md) for details.
-
-## License
-
-[Apache License v2.0](LICENSE.md).
+The app is not release-ready until the branch's automated build, startup smoke test, and live provider/file-workspace tests pass.
