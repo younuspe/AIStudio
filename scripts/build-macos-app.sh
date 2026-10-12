@@ -60,9 +60,9 @@ cat > "$OUTPUT/Contents/Info.plist" <<'PLIST'
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>AIStudio</string>
+    <string>Supru App Builder</string>
     <key>CFBundleDisplayName</key>
-    <string>AIStudio</string>
+    <string>Supru App Builder</string>
     <key>CFBundleShortVersionString</key>
     <string>0.1.0</string>
     <key>CFBundleVersion</key>
