@@ -39,6 +39,36 @@ jobs:
           file dist/AIStudio.app/Contents/MacOS/AIStudio
           lipo dist/AIStudio.app/Contents/MacOS/AIStudio -verify_arch arm64 x86_64
 
+      - name: Smoke-test native app launch
+        run: |
+          set -euo pipefail
+          APP_EXEC="$GITHUB_WORKSPACE/dist/AIStudio.app/Contents/MacOS/AIStudio"
+          LOG_FILE="$RUNNER_TEMP/aistudio-launch.log"
+          "$APP_EXEC" > "$LOG_FILE" 2>&1 &
+          APP_PID=$!
+          cleanup() {
+            if kill -0 "$APP_PID" 2>/dev/null; then
+              kill -TERM "$APP_PID" 2>/dev/null || true
+              sleep 1
+              kill -KILL "$APP_PID" 2>/dev/null || true
+            fi
+            wait "$APP_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          for attempt in {1..8}; do
+            if ! kill -0 "$APP_PID" 2>/dev/null; then
+              set +e
+              wait "$APP_PID"
+              APP_STATUS=$?
+              set -e
+              cat "$LOG_FILE"
+              echo "AIStudio exited during its startup smoke test (exit $APP_STATUS)." >&2
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "AIStudio native process remained alive for the 8-second startup smoke test."
+
       - name: Create downloadable app archive
         run: |
           ditto -c -k --sequesterRsrc --keepParent dist/AIStudio.app dist/AIStudio-macos.zip
