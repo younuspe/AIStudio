@@ -88,3 +88,11 @@ html,body{background:#050505;color:#f5f2f1}
   .workspace{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(300px,var(--builder-height)) 6px minmax(180px,1fr)}
   .builder{padding:16px 18px 9px}
 }
+
+
+/* Enforce the requested stacked builder layout in the packaged desktop window. */
+.workspace{display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:minmax(300px,var(--builder-height,56%)) 6px minmax(180px,1fr)!important;}
+.workspace>.builder{grid-column:1!important;grid-row:1!important;min-width:0;min-height:0;}
+.workspace>#workspaceSplitter{grid-column:1!important;grid-row:2!important;width:auto!important;height:6px!important;min-height:6px!important;cursor:row-resize!important;}
+.workspace>.preview{grid-column:1!important;grid-row:3!important;min-width:0;min-height:0;}
+.workspace>#workspaceSplitter:after{top:-3px!important;bottom:-3px!important;left:0!important;right:0!important;}
