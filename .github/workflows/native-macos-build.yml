@@ -1,0 +1,54 @@
+name: Native macOS desktop build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-macos-build
+  cancel-in-progress: false
+
+jobs:
+  build-macos:
+    name: Build standalone macOS app
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - name: Check out the selected branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Select Swift toolchain
+        run: |
+          swift --version
+          xcodebuild -version
+
+      - name: Compile native SwiftUI application
+        run: swift build --configuration release
+
+      - name: Package standalone app bundle
+        run: bash scripts/build-macos-app.sh
+
+      - name: Validate app bundle metadata and executable
+        run: |
+          plutil -lint dist/AIStudio.app/Contents/Info.plist
+          test -x dist/AIStudio.app/Contents/MacOS/AIStudio
+          file dist/AIStudio.app/Contents/MacOS/AIStudio
+
+      - name: Create downloadable app archive
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent dist/AIStudio.app dist/AIStudio-macos.zip
+          shasum -a 256 dist/AIStudio-macos.zip > dist/AIStudio-macos.zip.sha256
+
+      - name: Upload standalone app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AIStudio-macOS-unsigned
+          path: |
+            dist/AIStudio-macos.zip
+            dist/AIStudio-macos.zip.sha256
+          if-no-files-found: error
+          retention-days: 14

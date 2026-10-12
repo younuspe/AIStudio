@@ -10,8 +10,10 @@ AIStudio is being rebuilt as a standalone macOS application using **SwiftUI and 
 - Model catalog fetch through OpenAI-compatible \`/models\` endpoints.
 - API keys stored in macOS Keychain, not in the app's JSON state file.
 - Project folder picker and local file browser.
-- Create files and folders, edit UTF-8 text files, and save changes directly to disk.
+- Attach up to eight source/text files to a chat message; file contents are size-limited and sent only to the provider selected in the app.
+- Create files and folders, rename or delete files with confirmation, edit UTF-8 text files, and save changes directly to disk.
 - Model-driven project generation that writes returned files into the selected directory, with path traversal protections, size caps, and an overwrite confirmation.
+- Developer console for explicit user-entered commands, with output and exit-code capture. Commands run as the current macOS user, so review commands before execution.
 - Local HTML preview for a project you open. WebKit is used only as the project preview; AIStudio's own UI remains native.
 - No sign-in or password gate.
 
@@ -64,4 +66,4 @@ AIStudio sends prompts and included project instructions to the provider you sel
 
 ## Development status
 
-This branch replaces the web application entry point with a Swift package and app-bundle build script. It has not yet been compiled or run on a Mac in this environment. Do not treat the app as verified until the native build, provider live tests, project editing, and project generation have been tested on macOS.
+This branch replaces the web application tree with a Swift package and an unsigned app-bundle build script. It has not yet been compiled or run on a Mac in this environment. The optional GitHub Actions workflow at `.github/workflows/native-macos-build.yml` has **workflow_dispatch only**; pushing commits or opening a pull request will not automatically start a workflow. Run it only from the `desktop-productization` branch after implementation is ready. The app should not be described as release-ready until the native build, provider live tests, project editing, project generation, and command execution have been tested on macOS.

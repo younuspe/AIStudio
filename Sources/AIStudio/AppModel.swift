@@ -82,6 +82,7 @@ final class AppModel: ObservableObject {
     @Published var threads: [ChatThread] = []
     @Published var activeThreadID: UUID?
     @Published var inputText = ""
+    @Published var chatAttachments: [URL] = []
     @Published var isSending = false
 
     @Published var providers: [ProviderConfiguration] = ProviderConfiguration.defaults
@@ -174,9 +175,63 @@ final class AppModel: ObservableObject {
         saveState()
     }
 
+    func attachContextFiles() {
+        let panel = NSOpenPanel()
+        panel.title = "Attach files to chat"
+        panel.message = "Choose text or source files to include as context for the next message."
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = true
+        guard panel.runModal() == .OK else { return }
+        var combined = chatAttachments
+        for url in panel.urls {
+            let standardized = url.standardizedFileURL
+            if !combined.contains(where: { $0.standardizedFileURL == standardized }) && combined.count < 8 {
+                combined.append(standardized)
+            }
+        }
+        chatAttachments = combined
+        if combined.count == 8 && panel.urls.count > 8 {
+            statusMessage = "A maximum of eight files can be attached to one message."
+        }
+    }
+
+    func removeChatAttachment(_ url: URL) {
+        chatAttachments.removeAll { $0.standardizedFileURL == url.standardizedFileURL }
+    }
+
+    private func buildMessageWithFileContext(_ prompt: String, files: [URL]) -> String {
+        guard !files.isEmpty else { return prompt }
+        var remainingCharacters = 120_000
+        var blocks: [String] = []
+        for url in files {
+            guard remainingCharacters > 0 else {
+                blocks.append("[Remaining attached files omitted because the context size limit was reached.]")
+                break
+            }
+            do {
+                let data = try Data(contentsOf: url)
+                guard let body = String(data: data, encoding: .utf8) else {
+                    blocks.append("FILE: \(url.path)\n[Not a UTF-8 text file; content omitted.]")
+                    continue
+                }
+                let excerpt = String(body.prefix(min(body.count, remainingCharacters)))
+                remainingCharacters -= excerpt.count
+                blocks.append("FILE: \(url.path)\n--- BEGIN FILE CONTENT ---\n\(excerpt)\n--- END FILE CONTENT ---")
+                if excerpt.count < body.count {
+                    blocks.append("[File content truncated to keep the request within a safe context limit.]")
+                }
+            } catch {
+                blocks.append("FILE: \(url.path)\n[Could not read file: \(error.localizedDescription)]")
+            }
+        }
+        let instruction = prompt.isEmpty ? "Please review the attached files." : prompt
+        return instruction + "\n\nAttached file context:\n" + blocks.joined(separator: "\n\n")
+    }
+
     func sendMessage() {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !isSending else { return }
+        guard (!text.isEmpty || !chatAttachments.isEmpty), !isSending else { return }
         if activeThreadID == nil {
             let thread = ChatThread()
             threads.insert(thread, at: 0)
@@ -185,13 +240,19 @@ final class AppModel: ObservableObject {
         guard let targetID = activeThreadID,
               let index = threads.firstIndex(where: { $0.id == targetID }) else { return }
 
-        threads[index].messages.append(ChatMessage(role: "user", content: text))
-        if threads[index].messages.count == 1 { threads[index].title = String(text.prefix(48)) }
+        let submittedText = text.isEmpty ? "Please review the attached files." : text
+        let attachmentURLs = chatAttachments
+        threads[index].messages.append(ChatMessage(role: "user", content: submittedText))
+        if threads[index].messages.count == 1 { threads[index].title = String(submittedText.prefix(48)) }
         threads[index].modifiedAt = Date()
         let provider = activeProvider
-        let messages = threads[index].messages
+        var messages = threads[index].messages
+        if let lastIndex = messages.indices.last, !attachmentURLs.isEmpty {
+            messages[lastIndex] = ChatMessage(role: "user", content: buildMessageWithFileContext(submittedText, files: attachmentURLs))
+        }
         let key = KeychainStore.read(account: provider.keychainAccount) ?? ""
         inputText = ""
+        chatAttachments = []
         isSending = true
         lastError = nil
         saveState()
@@ -224,7 +285,10 @@ final class AppModel: ObservableObject {
         panel.allowsMultipleSelection = false
         panel.canCreateDirectories = true
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        if fileIsDirty { saveCurrentFile() }
+        if fileIsDirty {
+            saveCurrentFile()
+            guard !fileIsDirty else { return }
+        }
         workspaceURL = url.standardizedFileURL
         selectedFileURL = nil
         fileContent = ""
@@ -727,6 +791,12 @@ final class AppModel: ObservableObject {
             process.executableURL = URL(fileURLWithPath: "/bin/zsh")
             process.arguments = ["-c", command]
             process.currentDirectoryURL = root
+            var childEnvironment = ProcessInfo.processInfo.environment
+            let inheritedPath = childEnvironment["PATH"] ?? ""
+            let commonMacPaths = "/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin"
+            childEnvironment["PATH"] = commonMacPaths + (inheritedPath.isEmpty ? "" : ":" + inheritedPath)
+            childEnvironment["TERM"] = "xterm-256color"
+            process.environment = childEnvironment
             process.standardOutput = pipe
             process.standardError = pipe
             do {

@@ -100,7 +100,38 @@ struct ChatWorkspace: View {
                         .padding(.vertical, 6)
                 }
                 Divider()
+                if !model.chatAttachments.isEmpty {
+                    ScrollView(.horizontal) {
+                        HStack(spacing: 8) {
+                            ForEach(model.chatAttachments, id: \.path) { url in
+                                HStack(spacing: 5) {
+                                    Image(systemName: "doc.text")
+                                    Text(url.lastPathComponent).lineLimit(1)
+                                    Button {
+                                        model.removeChatAttachment(url)
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                    }
+                                    .buttonStyle(.borderless)
+                                }
+                                .font(.caption)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .background(Color.secondary.opacity(0.13), in: Capsule())
+                            }
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.top, 8)
+                    }
+                }
                 HStack(alignment: .bottom, spacing: 10) {
+                    Button {
+                        model.attachContextFiles()
+                    } label: {
+                        Image(systemName: "paperclip").font(.system(size: 18))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Attach source or text files as context")
                     TextField("Message AIStudio…", text: $model.inputText, axis: .vertical)
                         .lineLimit(1...5)
                         .textFieldStyle(.plain)
