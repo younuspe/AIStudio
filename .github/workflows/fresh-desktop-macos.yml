@@ -13,7 +13,7 @@ on:
 
 jobs:
   build-macos:
-    runs-on: macos-latest
+    runs-on: macos-26-arm64
     timeout-minutes: 45
     defaults:
       run:
@@ -68,6 +68,20 @@ jobs:
           codesign --force --deep --sign - --timestamp=none "$APP"
           codesign --verify --deep --strict --verbose=2 "$APP"
           test -f "$APP/Contents/_CodeSignature/CodeResources"
+
+          EXECUTABLE="$APP/Contents/MacOS/Supru App Builder"
+          test -x "$EXECUTABLE"
+          file "$EXECUTABLE" | tee executable-file.txt
+          grep -Eqi 'arm64' executable-file.txt || { echo 'ERROR: App executable is not Apple Silicon arm64.'; exit 1; }
+
+          echo 'Launching the packaged desktop app for a startup smoke test...'
+          open -a "$APP"
+          sleep 5
+          if ! pgrep -f "$EXECUTABLE" >/dev/null; then
+            echo 'ERROR: Supru App Builder exited immediately or failed to launch.'
+            exit 1
+          fi
+          osascript -e 'tell application "Supru App Builder" to quit' || true
       - name: Create DMG from verified app
         shell: bash
         run: |
@@ -77,14 +91,25 @@ jobs:
           mkdir -p "$(dirname "$DMG")"
           rm -f "$DMG"
           hdiutil create -volname "Supru App Builder" -srcfolder "$APP" -ov -format UDZO "$DMG"
+
+          MOUNT_POINT="$(mktemp -d)"
+          cleanup() {
+            hdiutil detach "$MOUNT_POINT" -quiet >/dev/null 2>&1 || true
+            rm -rf "$MOUNT_POINT"
+          }
+          trap cleanup EXIT
+          hdiutil attach "$DMG" -nobrowse -mountpoint "$MOUNT_POINT" -quiet
+          MOUNTED_APP="$MOUNT_POINT/Supru App Builder.app"
+          test -d "$MOUNTED_APP" || { echo 'ERROR: DMG does not contain Supru App Builder.app at its root.'; exit 1; }
+          codesign --verify --deep --strict "$MOUNTED_APP"
+          test -x "$MOUNTED_APP/Contents/MacOS/Supru App Builder"
+          echo 'Verified Apple Silicon app bundle inside the installer DMG.'
       - name: Verify DMG exists
         run: test -s "src-tauri/target/release/bundle/dmg/Supru App Builder_0.1.0_aarch64.dmg"
       - name: Upload macOS installers
         uses: actions/upload-artifact@v4
         with:
           name: Supru-App-Builder-macOS
-          path: |
-            fresh-desktop/src-tauri/target/release/bundle/dmg/*.dmg
-            fresh-desktop/src-tauri/target/release/bundle/macos/*.app
+          path: fresh-desktop/src-tauri/target/release/bundle/dmg/*.dmg
           if-no-files-found: error
           retention-days: 7
