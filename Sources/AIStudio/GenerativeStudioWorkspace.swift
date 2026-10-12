@@ -311,7 +311,7 @@ struct GenerativeStudioWorkspace: View {
     private func exportPlaygroundHistory() {
         let panel = NSSavePanel()
         panel.title = "Export model playground history"
-        panel.nameFieldStringValue = "AIStudio-Playground-History.json"
+        panel.nameFieldStringValue = "Supru-App-Builder-Playground-History.json"
         panel.allowedContentTypes = [.json]
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
@@ -484,7 +484,7 @@ struct GenerativeStudioWorkspace: View {
                                 .foregroundStyle(.secondary)
                             Text("Your generated image will appear here")
                                 .font(.headline)
-                            Text("AIStudio does not show mock artwork as successful generation. If your provider does not support image requests, it will display the provider's error.")
+                            Text("Supru App Builder does not show mock artwork as successful generation. If your provider does not support image requests, it will display the provider's error.")
                                 .font(.callout)
                                 .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.center)
