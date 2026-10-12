@@ -1,0 +1,37 @@
+name: Desktop app from scratch
+on:
+  push:
+    branches: [desktop/from-scratch]
+  pull_request:
+    branches: [desktop/from-scratch]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: desktop-from-scratch-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  macos-arm64:
+    runs-on: macos-14
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install frontend dependencies
+        run: npm install
+      - name: Type-check and build frontend
+        run: npm run build
+      - name: Check Rust desktop backend
+        run: cargo check --manifest-path src-tauri/Cargo.toml
+      - name: Build macOS DMG
+        run: npm run tauri build
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: AIStudio-Desktop-macOS-AppleSilicon
+          path: src-tauri/target/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+          retention-days: 7
