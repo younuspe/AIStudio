@@ -2,6 +2,10 @@ name: Fresh Desktop macOS Build
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "fresh-desktop/**"
+      - ".github/workflows/fresh-desktop-macos.yml"
   push:
     paths:
       - "fresh-desktop/**"
@@ -26,3 +30,12 @@ jobs:
         run: npm install
       - name: Build macOS app and DMG
         run: npm run build
+      - name: Upload macOS installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI-Studio-Desktop-macOS
+          path: |
+            fresh-desktop/src-tauri/target/release/bundle/dmg/*.dmg
+            fresh-desktop/src-tauri/target/release/bundle/macos/*.app
+          if-no-files-found: error
+          retention-days: 7
