@@ -28,6 +28,14 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Install dependencies
         run: npm install
+      - name: Convert cat artwork to a valid PNG
+        shell: bash
+        run: |
+          set -euo pipefail
+          sips -s format png ui/cat_icon.png --out ui/cat_icon.converted.png
+          file ui/cat_icon.converted.png | grep -q 'PNG image'
+          mv ui/cat_icon.converted.png ui/cat_icon.png
+          file ui/cat_icon.png
       - name: Build macOS app bundle
         run: npm run build -- --bundles app
       - name: Ad-hoc sign and verify app bundle
