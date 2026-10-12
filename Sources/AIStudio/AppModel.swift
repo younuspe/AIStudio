@@ -803,6 +803,7 @@ final class AppModel: ObservableObject {
         }
         let rawProjectRequest = projectPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !rawProjectRequest.isEmpty, !isGeneratingProject else { return }
+        refreshWorkspaceFiles()
         let existingSourceContext = buildExistingProjectContext(root: root)
         let isIncrementalProjectUpdate = !existingSourceContext.isEmpty
         let requestText = isIncrementalProjectUpdate
@@ -1019,7 +1020,7 @@ final class AppModel: ObservableObject {
                 refreshWorkspaceFiles()
                 isGeneratingProject = false
                 statusMessage = "Generated and saved \(prepared.count) project files."
-                selectedSection = .chat
+                selectedSection = replyThreadID == nil ? .projects : .chat
                 if let replyThreadID {
                     let listedFiles = prepared.prefix(40).map { "- \($0.0.path.replacingOccurrences(of: root.path + "/", with: ""))" }.joined(separator: "\n")
                     let extra = prepared.count > 40 ? "\n- …and \(prepared.count - 40) more file(s)" : ""
