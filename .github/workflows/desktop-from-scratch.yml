@@ -33,8 +33,44 @@ jobs:
           /tmp/icon-venv/bin/python -m pip install --disable-pip-version-check Pillow
           /tmp/icon-venv/bin/python -c 'from pathlib import Path; from PIL import Image; src=Image.open("/tmp/supru-stud-icon-source.png"); src.load(); out=src.convert("RGBA").resize((1024,1024), Image.Resampling.LANCZOS); out.save("src-tauri/icons/icon.png", format="PNG", optimize=True); check=Image.open("src-tauri/icons/icon.png"); assert check.mode=="RGBA" and check.size==(1024,1024), f"Wrong icon format: {check.mode} {check.size}"; icns=Path("src-tauri/icons/SupruStud-AppIcon.icns").read_bytes(); png=Path("src-tauri/icons/icon.png").read_bytes(); assert icns.startswith(b"icns") and png.startswith(bytes.fromhex("89504e470d0a1a0a")); print(f"Verified Supru Stud icon: ICNS {len(icns)} bytes; PNG {check.mode} {check.size}, {len(png)} bytes")'
           file src-tauri/icons/SupruStud-AppIcon.icns src-tauri/icons/icon.png
+      - name: Require Apple Developer ID signing and notarization credentials
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing required GitHub Actions secret: $name. A Developer ID-signed and Apple-notarized DMG cannot be produced safely without it."
+              exit 1
+            fi
+          done
+      - name: Import Apple Developer ID certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
+          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
       - name: Build macOS desktop app and DMG
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: npm run tauri build
+      - name: Notarize and staple the DMG
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          DMG="$(find src-tauri/target/release/bundle/dmg -maxdepth 1 -name '*.dmg' -print -quit)"
+          test -n "$DMG"
+          xcrun notarytool submit "$DMG" --apple-id "$APPLE_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
+          xcrun stapler staple "$DMG"
+          xcrun stapler validate "$DMG"
       - name: Verify app signature inside the DMG
         shell: bash
         run: |
@@ -51,6 +87,7 @@ jobs:
           APP="$(find "$MOUNT_POINT" -maxdepth 2 -name '*.app' -print -quit)"
           test -n "$APP"
           codesign --verify --deep --strict --verbose=2 "$APP"
+          spctl --assess --type execute --verbose=2 "$APP"
           codesign -dv --verbose=2 "$APP" 2>&1
       - name: Upload single Apple Silicon DMG
         uses: actions/upload-artifact@v4
