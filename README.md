@@ -34,7 +34,7 @@ From the repository root on a Mac:
     ./scripts/build-macos-app.sh
     open dist/AIStudio.app
 
-The build script compiles the Swift package and creates dist/AIStudio.app. AIStudio's own UI does not require a Node.js development server. The build is unsigned and not notarized, so macOS may require a user-approved first launch.
+The build script compiles arm64 and x86_64 Swift executables and combines them into a Universal 2 dist/AIStudio.app, so the same build supports Apple Silicon and Intel Macs. AIStudio's own UI does not require a Node.js development server. The build is unsigned and not notarized, so macOS may require a user-approved first launch.
 
 To choose another output location:
 
