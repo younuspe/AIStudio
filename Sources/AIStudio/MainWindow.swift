@@ -63,27 +63,62 @@ struct MainWindow: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Supru")
-                    .font(.system(size: 29, weight: .black, design: .rounded))
-                    .tracking(-1.0)
-                    .foregroundStyle(Color(red: 0.015, green: 0.015, blue: 0.018))
-                    .shadow(color: BrandTheme.hotOrange.opacity(0.95), radius: 5, x: 0, y: 0)
-                    .shadow(color: BrandTheme.deepRed.opacity(0.8), radius: 13, x: 0, y: 0)
-                    .shadow(color: BrandTheme.deepRed.opacity(0.42), radius: 22, x: 0, y: 0)
+            HStack(alignment: .center, spacing: 11) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 13)
+                        .fill(
+                            LinearGradient(
+                                colors: [BrandTheme.hotOrange.opacity(0.65), BrandTheme.deepRed.opacity(0.7)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 44, height: 44)
+                        .blur(radius: 8)
 
-                Text("App Builder")
-                    .font(.system(size: 17, weight: .heavy, design: .rounded))
-                    .tracking(-0.25)
-                    .foregroundStyle(BrandTheme.appBuilderGradient)
-                    .shadow(color: Color.white.opacity(0.28), radius: 1.5, x: 0, y: 1)
-                    .shadow(color: BrandTheme.deepRed.opacity(0.22), radius: 5, x: 0, y: 0)
+                    if let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+                       let supruIcon = NSImage(contentsOf: iconURL) {
+                        Image(nsImage: supruIcon)
+                            .resizable()
+                            .interpolation(.high)
+                            .scaledToFill()
+                            .frame(width: 40, height: 40)
+                            .clipShape(RoundedRectangle(cornerRadius: 11))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 11)
+                                    .stroke(BrandTheme.hotOrange.opacity(0.75), lineWidth: 1)
+                            )
+                            .shadow(color: BrandTheme.hotOrange.opacity(0.38), radius: 9, x: 0, y: 0)
+                    } else {
+                        Image(systemName: "cat.fill")
+                            .font(.system(size: 25, weight: .bold))
+                            .foregroundStyle(BrandTheme.hotOrange)
+                            .frame(width: 40, height: 40)
+                    }
+                }
 
-                Text("BUILD • PREVIEW • REFINE")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .tracking(1.35)
-                    .foregroundStyle(BrandTheme.muted)
-                    .padding(.top, 5)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Supru")
+                        .font(.system(size: 29, weight: .black, design: .rounded))
+                        .tracking(-1.0)
+                        .foregroundStyle(Color(red: 0.015, green: 0.015, blue: 0.018))
+                        .shadow(color: BrandTheme.hotOrange.opacity(0.95), radius: 5, x: 0, y: 0)
+                        .shadow(color: BrandTheme.deepRed.opacity(0.8), radius: 13, x: 0, y: 0)
+                        .shadow(color: BrandTheme.deepRed.opacity(0.42), radius: 22, x: 0, y: 0)
+
+                    Text("App Builder")
+                        .font(.system(size: 17, weight: .heavy, design: .rounded))
+                        .tracking(-0.25)
+                        .foregroundStyle(BrandTheme.appBuilderGradient)
+                        .shadow(color: Color.white.opacity(0.28), radius: 1.5, x: 0, y: 1)
+                        .shadow(color: BrandTheme.deepRed.opacity(0.22), radius: 5, x: 0, y: 0)
+
+                    Text("BUILD • PREVIEW • REFINE")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .tracking(1.35)
+                        .foregroundStyle(BrandTheme.muted)
+                        .padding(.top, 5)
+                }
             }
             .padding(.horizontal, 17)
             .padding(.top, 24)
