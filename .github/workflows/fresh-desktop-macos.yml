@@ -75,7 +75,7 @@ jobs:
           grep -Eqi 'arm64' executable-file.txt || { echo 'ERROR: App executable is not Apple Silicon arm64.'; exit 1; }
 
           echo 'Launching the packaged desktop app for a startup smoke test...'
-          open -a "$APP"
+          open "$APP"
           sleep 5
           if ! pgrep -f "$EXECUTABLE" >/dev/null; then
             echo 'ERROR: Supru App Builder exited immediately or failed to launch.'
