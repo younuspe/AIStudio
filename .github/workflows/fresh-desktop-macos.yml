@@ -28,8 +28,28 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Install dependencies
         run: npm install
-      - name: Build macOS app and DMG
-        run: npm run build
+      - name: Build macOS app bundle
+        run: npm run build -- --bundles app
+      - name: Ad-hoc sign and verify app bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="src-tauri/target/release/bundle/macos/AI Studio Desktop.app"
+          test -d "$APP"
+          codesign --force --deep --sign - --timestamp=none "$APP"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          test -f "$APP/Contents/_CodeSignature/CodeResources"
+      - name: Create DMG from verified app
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="src-tauri/target/release/bundle/macos/AI Studio Desktop.app"
+          DMG="src-tauri/target/release/bundle/dmg/AI Studio Desktop_0.1.0_aarch64.dmg"
+          mkdir -p "$(dirname "$DMG")"
+          rm -f "$DMG"
+          hdiutil create -volname "AI Studio Desktop" -srcfolder "$APP" -ov -format UDZO "$DMG"
+      - name: Verify DMG exists
+        run: test -s "src-tauri/target/release/bundle/dmg/AI Studio Desktop_0.1.0_aarch64.dmg"
       - name: Upload macOS installers
         uses: actions/upload-artifact@v4
         with:
