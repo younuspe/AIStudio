@@ -13,7 +13,7 @@ AIStudio is being rebuilt as a standalone macOS application using SwiftUI and Ap
 - Attach up to eight source/text files to a chat message, with per-file and total context limits.
 - Generate a project in stages: plan the file tree, generate up to 24 files in batches of three, validate paths and duplicates, ask before overwrite, and roll back successfully written targets if a later write fails.
 - Native Generative Studio for prompt-to-image and source-image edits through compatible image endpoints, then save the result as a local PNG.
-- Visual property controls that write CSS into a static HTML file.
+- Visual property controls that write CSS overrides into an HTML entry page, including Vite-style projects.
 - Live preview of static HTML or a project dev server configured to listen on loopback.
 - Developer console for commands the user explicitly enters and runs.
 - No sign-in or password gate.

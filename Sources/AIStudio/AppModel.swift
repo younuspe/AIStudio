@@ -326,6 +326,9 @@ final class AppModel: ObservableObject {
             saveCurrentFile()
             guard !fileIsDirty else { return }
         }
+        if previewServerProcess?.isRunning == true {
+            stopProjectPreviewServer()
+        }
         workspaceURL = url.standardizedFileURL
         selectedFileURL = nil
         fileContent = ""
@@ -1093,12 +1096,31 @@ final class AppModel: ObservableObject {
     }
 
     func applyVisualSettings() {
-        guard let root = workspaceURL, let htmlURL = previewFileURL,
-              htmlURL.pathExtension.lowercased() == "html",
-              isInsideWorkspace(htmlURL, root: root) else {
-            lastError = "Open a local project and choose an HTML page before applying visual changes."
+        guard let root = workspaceURL else {
+            lastError = "Open a local project before applying visual changes."
             return
         }
+
+        let selectedHTML: URL?
+        if let selectedFileURL,
+           selectedFileURL.pathExtension.lowercased() == "html",
+           isInsideWorkspace(selectedFileURL, root: root) {
+            selectedHTML = selectedFileURL
+        } else if let previewFileURL,
+                  previewFileURL.pathExtension.lowercased() == "html",
+                  isInsideWorkspace(previewFileURL, root: root) {
+            selectedHTML = previewFileURL
+        } else {
+            selectedHTML = ["index.html", "src/index.html", "public/index.html"]
+                .map { root.appendingPathComponent($0) }
+                .first(where: { fileManager.fileExists(atPath: $0.path) && isInsideWorkspace($0, root: root) })
+        }
+
+        guard let htmlURL = selectedHTML else {
+            lastError = "No HTML entry page was found. For a React/Vite app, apply visual changes to its root index.html."
+            return
+        }
+
         do {
             let original = try String(contentsOf: htmlURL, encoding: .utf8)
             let background = Self.sanitizedHexColor(visualBackgroundColor, fallback: "#ffffff")
@@ -1132,6 +1154,7 @@ final class AppModel: ObservableObject {
                 savedFileContent = updated
                 fileIsDirty = false
             }
+            previewFileURL = htmlURL
             previewRefreshID = UUID()
             statusMessage = "Applied visual settings to \(htmlURL.lastPathComponent) and saved the changes."
             lastError = nil

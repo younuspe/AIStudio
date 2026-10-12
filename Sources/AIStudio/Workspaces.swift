@@ -388,9 +388,48 @@ struct VisualEditorWorkspace: View {
                             .font(.callout)
                             .foregroundStyle(.secondary)
                         Divider()
-                        Text("Editing").font(.headline)
-                        Text("Edit source and CSS in Projects, save your changes, then reload the preview. Most Vite and similar servers also support hot reload.")
-                            .font(.callout)
+                        Text("Visual properties").font(.headline)
+                        Picker("Common target", selection: $model.visualTargetSelector) {
+                            Text("Page body").tag("body")
+                            Text("Header").tag("header")
+                            Text("Navigation").tag("nav")
+                            Text("Main area").tag("main")
+                            Text("Section").tag("section")
+                            Text("Heading").tag("h1")
+                            Text("Button").tag("button")
+                            Text("Hero class").tag(".hero")
+                            Text("Root ID").tag("#root")
+                        }
+                        .pickerStyle(.menu)
+                        TextField("CSS selector (e.g. .hero or #header)", text: $model.visualTargetSelector)
+                            .textFieldStyle(.roundedBorder)
+                        TextField("Background color (hex)", text: $model.visualBackgroundColor)
+                            .textFieldStyle(.roundedBorder)
+                        TextField("Text color (hex)", text: $model.visualTextColor)
+                            .textFieldStyle(.roundedBorder)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Content width: \(Int(model.visualContentWidth)) px")
+                            Slider(value: $model.visualContentWidth, in: 600...1600, step: 40)
+                        }
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Font size: \(Int(model.visualFontSize)) px")
+                            Slider(value: $model.visualFontSize, in: 12...28, step: 1)
+                        }
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Corner radius: \(Int(model.visualCornerRadius)) px")
+                            Slider(value: $model.visualCornerRadius, in: 0...40, step: 1)
+                        }
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Section spacing: \(Int(model.visualSectionSpacing)) px")
+                            Slider(value: $model.visualSectionSpacing, in: 0...80, step: 4)
+                        }
+                        Button {
+                            model.applyVisualSettings()
+                        } label: {
+                            Label("Apply and Save", systemImage: "paintbrush.pointed")
+                        }
+                        Text("These controls save a CSS override into the project's HTML entry page, including most Vite projects. For more advanced component changes, edit source files in Projects.")
+                            .font(.caption)
                             .foregroundStyle(.secondary)
                         Button("Open Projects") { model.selectedSection = .projects }
                     }

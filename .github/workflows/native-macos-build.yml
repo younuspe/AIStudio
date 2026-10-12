@@ -37,7 +37,7 @@ jobs:
           plutil -lint dist/AIStudio.app/Contents/Info.plist
           test -x dist/AIStudio.app/Contents/MacOS/AIStudio
           file dist/AIStudio.app/Contents/MacOS/AIStudio
-          lipo -verify_arch arm64 x86_64 dist/AIStudio.app/Contents/MacOS/AIStudio
+          lipo dist/AIStudio.app/Contents/MacOS/AIStudio -verify_arch arm64 x86_64
 
       - name: Create downloadable app archive
         run: |

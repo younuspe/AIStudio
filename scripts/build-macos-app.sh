@@ -37,7 +37,7 @@ fi
 
 mkdir -p "$(dirname "$BINARY")"
 lipo -create "$ARM_BINARY" "$INTEL_BINARY" -output "$BINARY"
-lipo -verify_arch arm64 x86_64 "$BINARY"
+lipo "$BINARY" -verify_arch arm64 x86_64
 
 if [[ ! -x "$BINARY" ]]; then
   echo "Error: Could not create the Universal 2 executable." >&2
@@ -87,4 +87,4 @@ PLIST
 printf 'APPL????' > "$OUTPUT/Contents/PkgInfo"
 
 echo "Created Universal 2 native macOS app bundle: $OUTPUT"
-lipo -info "$OUTPUT/Contents/MacOS/$APP_NAME"
+lipo "$OUTPUT/Contents/MacOS/$APP_NAME" -info
