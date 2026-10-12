@@ -68,7 +68,8 @@ jobs:
           codesign --force --deep --sign - --timestamp=none "$APP"
           codesign --verify --deep --strict --verbose=2 "$APP"
 
-          EXECUTABLE="$APP/Contents/MacOS/Supru App Builder"
+          EXECUTABLE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist")
+          EXECUTABLE="$APP/Contents/MacOS/$EXECUTABLE_NAME"
           test -x "$EXECUTABLE"
           file "$EXECUTABLE" | tee executable-file.txt
           grep -Eqi 'arm64' executable-file.txt || { echo 'ERROR: App executable is not Apple Silicon arm64.'; exit 1; }
@@ -101,7 +102,8 @@ jobs:
           MOUNTED_APP="$MOUNT_POINT/Supru App Builder.app"
           test -d "$MOUNTED_APP" || { echo 'ERROR: DMG does not contain Supru App Builder.app at its root.'; exit 1; }
           codesign --verify --deep --strict "$MOUNTED_APP"
-          test -x "$MOUNTED_APP/Contents/MacOS/Supru App Builder"
+          MOUNTED_EXECUTABLE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$MOUNTED_APP/Contents/Info.plist")
+          test -x "$MOUNTED_APP/Contents/MacOS/$MOUNTED_EXECUTABLE_NAME"
           echo 'Verified Apple Silicon app bundle inside the installer DMG.'
       - name: Verify DMG exists
         run: test -s "src-tauri/target/release/bundle/dmg/Supru App Builder_0.1.0_aarch64.dmg"
