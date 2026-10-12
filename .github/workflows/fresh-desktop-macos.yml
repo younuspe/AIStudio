@@ -88,23 +88,30 @@ jobs:
           set -euo pipefail
           APP="src-tauri/target/release/bundle/macos/Supru App Builder.app"
           DMG="src-tauri/target/release/bundle/dmg/Supru App Builder_0.1.0_aarch64.dmg"
+          STAGING_DIR="$(mktemp -d)"
+          MOUNT_POINT="$(mktemp -d)"
           mkdir -p "$(dirname "$DMG")"
           rm -f "$DMG"
-          hdiutil create -volname "Supru App Builder" -srcfolder "$APP" -ov -format UDZO "$DMG"
-
-          MOUNT_POINT="$(mktemp -d)"
           cleanup() {
             hdiutil detach "$MOUNT_POINT" -quiet >/dev/null 2>&1 || true
-            rm -rf "$MOUNT_POINT"
+            rm -rf "$MOUNT_POINT" "$STAGING_DIR"
           }
           trap cleanup EXIT
+
+          # Standard macOS drag-to-Applications installer layout.
+          ditto "$APP" "$STAGING_DIR/Supru App Builder.app"
+          ln -s /Applications "$STAGING_DIR/Applications"
+          hdiutil create -volname "Supru App Builder" -srcfolder "$STAGING_DIR" -ov -format UDZO "$DMG"
+
           hdiutil attach "$DMG" -nobrowse -mountpoint "$MOUNT_POINT" -quiet
           MOUNTED_APP="$MOUNT_POINT/Supru App Builder.app"
           test -d "$MOUNTED_APP" || { echo 'ERROR: DMG does not contain Supru App Builder.app at its root.'; exit 1; }
+          test -L "$MOUNT_POINT/Applications" || { echo 'ERROR: DMG is missing the Applications shortcut.'; exit 1; }
+          test "$(readlink "$MOUNT_POINT/Applications")" = "/Applications" || { echo 'ERROR: Applications shortcut has the wrong target.'; exit 1; }
           codesign --verify --deep --strict "$MOUNTED_APP"
           MOUNTED_EXECUTABLE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$MOUNTED_APP/Contents/Info.plist")
           test -x "$MOUNTED_APP/Contents/MacOS/$MOUNTED_EXECUTABLE_NAME"
-          echo 'Verified Apple Silicon app bundle inside the installer DMG.'
+          echo 'Verified Apple Silicon app bundle and Applications shortcut inside the installer DMG.'
       - name: Verify DMG exists
         run: test -s "src-tauri/target/release/bundle/dmg/Supru App Builder_0.1.0_aarch64.dmg"
       - name: Upload macOS installers
