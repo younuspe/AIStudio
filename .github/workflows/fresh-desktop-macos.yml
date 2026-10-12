@@ -28,7 +28,16 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Install dependencies
         run: npm install
-      - name: Convert cat artwork to a valid PNG
+      - name: Retrieve existing Supru macOS app icon
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error \
+            https://raw.githubusercontent.com/younuspe/Stud/main/public/AppIcon.icns \
+            --output ui/AppIcon.icns
+          file ui/AppIcon.icns | grep -qi 'Mac OS X icon'
+          test -s ui/AppIcon.icns
+      - name: Convert cat artwork to a valid PNG for UI assets
         shell: bash
         run: |
           set -euo pipefail
