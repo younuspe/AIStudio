@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum BrandTheme {
-    static let background = Color(red: 5 / 255, green: 5 / 255, blue: 7 / 255)
+    static let background = Color(red: 5.0 / 255.0, green: 5 / 255, blue: 7.0 / 255.0)
     static let panel = Color(red: 13 / 255, green: 13 / 255, blue: 17 / 255)
     static let panelRaised = Color(red: 20 / 255, green: 20 / 255, blue: 25 / 255)
     static let border = Color.white.opacity(0.085)
