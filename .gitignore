@@ -49,7 +49,7 @@ next-env.d.ts
 
 # Test screenshots (browser verification artifacts)
 /*.png
-!/AIStudio.png
+!/Supru-App-Builder.png
 test*.png
 verify*.png
 regression*.png
