@@ -1,30 +1,31 @@
-# AI Studio Desktop
+# Supru App Builder
 
-An independent desktop-app rebuild of the AI Studio-style workspace, developed in the `fresh-desktop/` directory. This branch is focused on a native macOS application—not the previous web application.
+A native macOS desktop app for building small web apps from prompts, inspecting a live preview, editing source, and exporting project files. The desktop implementation lives in the `fresh-desktop/` directory. This branch is for the native desktop app, not the older web application.
 
-> **Development status:** Work in progress. The macOS build has not yet been verified successfully. Do not treat this branch as a production-ready release.
+> **Development status:** Work in progress. A successful build and a fresh install/launch test are still required before calling this release ready.
 
 ## Reference designs
 
-The UI work is guided by these project reference images:
+The interface is guided by these project reference images:
 
 - [Reference 01](Ref-01.jpeg)
 - [Reference 02](Ref-02.jpeg)
 - [Reference 03](Ref-03.jpeg)
 
-The app uses the project's own cat artwork and branding, not Google's official logo.
+Supru App Builder uses the project's own Supru cat artwork and branding, not Google's official logo.
 
 ## Current implementation
 
-The fresh desktop app currently provides a Tauri 2 desktop shell and a workspace foundation for:
+The current desktop workspace includes:
 
-- Chat/prompt input and a live preview area
-- Code editing and a project-file list
+- Prompt input with Build, Ask, and Plan modes
+- Live app preview and source-code editor
+- Project-file list and visual element editing
 - OpenAI-compatible chat-completions endpoints
 - Ollama-compatible local endpoints
-- Editing and exporting a generated single-file HTML app
+- Local session/settings storage and ZIP export of project files
 
-These are current implementation goals/features, not a claim of full Google AI Studio feature parity. Provider calls, API-key persistence, preview isolation, and the packaged app still require end-to-end verification.
+This is a developing app, not a claim of full Google AI Studio feature parity or production readiness. Provider connections, project persistence, preview isolation, exported archives, and the packaged app require end-to-end testing.
 
 ## Build on macOS
 
@@ -36,13 +37,13 @@ npm install
 npm run build
 ```
 
-The GitHub Actions workflow is `.github/workflows/fresh-desktop-macos.yml`. It builds the macOS app and packages a DMG. The workflow currently uses ad-hoc signing only; this is free and is **not** Apple Developer ID signing or notarization. macOS may still display a security warning when opening the downloaded app.
+The GitHub Actions workflow is `.github/workflows/fresh-desktop-macos.yml`. It builds the macOS app and packages a DMG. The workflow uses free ad-hoc signing only; this is not Apple Developer ID signing or notarization, so macOS may still display a security warning.
 
 ## Project layout
 
 ```
 fresh-desktop/
-  ui/             # Desktop frontend and app artwork
+  ui/             # Desktop frontend and Supru artwork
   src-tauri/      # Tauri/Rust desktop shell and bundle configuration
   package.json    # Desktop build scripts
   README.md       # Desktop-specific setup and status
@@ -54,7 +55,7 @@ Ref-02.jpeg
 Ref-03.jpeg
 ```
 
-The older web application's files may still exist elsewhere in this repository while cleanup and separation are in progress. The new desktop app's implementation is contained in `fresh-desktop/`; it should not depend on the old web app's runtime.
+The older web application's files may still exist elsewhere in this repository. The native desktop app is implemented in `fresh-desktop/` and should not depend on the older web app's runtime.
 
 ## Free distribution
 
@@ -62,7 +63,7 @@ The project uses free build tooling and GitHub Actions. No paid signing certific
 
 ## Security note
 
-Do not commit API keys, tokens, or personal credentials. Before production use, API-key storage and provider requests must be reviewed and verified.
+Do not commit API keys, tokens, or personal credentials. API-key storage and provider requests must be reviewed before production use.
 
 ## License
 
