@@ -73,7 +73,7 @@ struct SettingsWorkspace: View {
                 if !model.discoveredModels.isEmpty {
                     GroupBox("Model IDs returned by this endpoint") {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Select an ID to use it. Whether a model is free, and its usage limits, are determined by the provider—not by AIStudio.")
+                            Text("Select an ID to use it. Whether a model is free, and its usage limits, are determined by the provider—not by Supru App Builder.")
                                 .font(.callout)
                                 .foregroundStyle(.secondary)
                             if model.selectedProviderID == "openrouter" {
