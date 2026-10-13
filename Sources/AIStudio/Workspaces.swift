@@ -395,6 +395,289 @@ private struct ChatMessageRow: View {
     }
 }
 
+
+/// Reference-matched, unified builder surface: chat, project source, and live preview
+/// stay visible together. HSplitView dividers are the user's resize handles.
+struct BuilderWorkspace: View {
+    @ObservedObject var model: AppModel
+    @State private var composerMode: ChatComposerMode = .chat
+    @StateObject private var voiceInput = VoiceInputController()
+    @State private var draftBeforeDictation = ""
+
+    var body: some View {
+        HSplitView {
+            chatPane.frame(minWidth: 300, idealWidth: 390, maxWidth: 520)
+            HSplitView {
+                sourcePane.frame(minWidth: 420, idealWidth: 660)
+                previewPane.frame(minWidth: 280, idealWidth: 430)
+            }
+            .frame(minWidth: 720)
+        }
+        .background(BrandTheme.background)
+        .onChange(of: voiceInput.transcript) { transcript in
+            guard !transcript.isEmpty else { return }
+            let prefix = draftBeforeDictation.trimmingCharacters(in: .whitespacesAndNewlines)
+            model.inputText = prefix.isEmpty ? transcript : prefix + " " + transcript
+        }
+    }
+
+    private var chatPane: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: model.activeProvider.isLocal ? "desktopcomputer" : "sparkles")
+                    .foregroundStyle(BrandTheme.hotOrange)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("CHAT").font(.caption.weight(.bold)).tracking(1)
+                    Text("\(model.activeProvider.name) · \(model.activeProvider.model.isEmpty ? "Choose a model" : model.activeProvider.model)")
+                        .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                }
+                Spacer()
+                Button { model.newChat() } label: { Image(systemName: "plus") }
+                    .buttonStyle(.borderless).help("New chat")
+                Button("Models") { model.selectedSection = .settings }.buttonStyle(.borderless)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 11)
+            Divider()
+
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 12) {
+                        if let thread = model.activeThread, thread.messages.isEmpty {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("What are we building?").font(.title3.weight(.semibold))
+                                Text("Describe the app, ask a question, or switch to Build to generate a project. Your editor and preview remain beside this chat.")
+                                    .font(.callout).foregroundStyle(.secondary)
+                                Button("Build a dashboard") {
+                                    composerMode = .build
+                                    model.inputText = "Build a responsive business dashboard with navigation, reusable components, realistic sample data, accessible layouts, functional interactions, tests where suitable, and a README with run instructions."
+                                }.buttonStyle(.bordered)
+                                Button("Improve the open app") {
+                                    composerMode = .build
+                                    model.inputText = "Inspect the selected project and improve the existing application without discarding working features. Preserve its architecture and visual design, implement the requested change, and include appropriate verification instructions."
+                                }.buttonStyle(.bordered)
+                            }
+                            .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+                            .background(BrandTheme.panelRaised, in: RoundedRectangle(cornerRadius: 12))
+                        }
+                        if let thread = model.activeThread {
+                            ForEach(thread.messages) { message in ChatMessageRow(message: message).id(message.id) }
+                        }
+                        if model.isSending || model.isGeneratingProject {
+                            HStack(spacing: 8) {
+                                ProgressView().controlSize(.small)
+                                Text(model.statusMessage ?? "Working…")
+                                    .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                            }
+                        }
+                    }.padding(12)
+                }
+                .onChange(of: model.activeThread?.messages.count ?? 0) { _ in
+                    guard let last = model.activeThread?.messages.last else { return }
+                    proxy.scrollTo(last.id, anchor: .bottom)
+                }
+            }
+
+            if let error = model.lastError {
+                Text(error).font(.caption).foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12).padding(.vertical, 6)
+            }
+            Divider()
+            if !model.chatAttachments.isEmpty {
+                ScrollView(.horizontal) {
+                    HStack(spacing: 6) {
+                        ForEach(model.chatAttachments, id: \.path) { url in
+                            HStack(spacing: 4) {
+                                Text(url.lastPathComponent).lineLimit(1)
+                                Button { model.removeChatAttachment(url) } label: { Image(systemName: "xmark.circle.fill") }
+                                    .buttonStyle(.borderless)
+                            }
+                            .font(.caption2).padding(6).background(BrandTheme.panelRaised, in: Capsule())
+                        }
+                    }.padding(.horizontal, 10).padding(.top, 7)
+                }
+            }
+            VStack(spacing: 8) {
+                Picker("Mode", selection: $composerMode) {
+                    ForEach(ChatComposerMode.allCases) { mode in Text(mode.rawValue).tag(mode) }
+                }.pickerStyle(.segmented)
+                HStack(alignment: .bottom, spacing: 8) {
+                    Button { model.attachContextFiles() } label: { Image(systemName: "plus.circle") }
+                        .buttonStyle(.plain).help("Attach source or text files")
+                    TextField(composerMode == .build ? "Describe the app to build…" : "Ask Supru anything…",
+                              text: $model.inputText, axis: .vertical)
+                        .lineLimit(1...4).textFieldStyle(.plain).padding(9)
+                        .background(BrandTheme.panelRaised, in: RoundedRectangle(cornerRadius: 10))
+                        .onSubmit { submitComposer() }
+                    Button {
+                        if voiceInput.isRecording { voiceInput.stop() }
+                        else { draftBeforeDictation = model.inputText; voiceInput.start() }
+                    } label: {
+                        Image(systemName: voiceInput.isRecording ? "stop.circle.fill" : "mic")
+                            .foregroundStyle(voiceInput.isRecording ? Color.red : BrandTheme.muted)
+                    }
+                    .buttonStyle(.plain).help(voiceInput.isRecording ? "Stop dictation" : "Dictate prompt")
+                    .disabled(model.isSending || model.isGeneratingProject)
+                    Button { submitComposer() } label: {
+                        Text("Meow!").font(.system(size: 12, weight: .black, design: .rounded))
+                            .padding(.horizontal, 13).frame(height: 36)
+                            .background(LinearGradient(colors: [BrandTheme.hotOrange, BrandTheme.deepRed],
+                                                       startPoint: .topLeading, endPoint: .bottomTrailing),
+                                        in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(model.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                              model.isSending || model.isGeneratingProject)
+                }
+                if let voiceError = voiceInput.errorMessage, !voiceError.isEmpty {
+                    Text(voiceError).font(.caption2).foregroundStyle(.red)
+                }
+            }
+            .padding(10).background(BrandTheme.panel)
+        }
+        .background(BrandTheme.background)
+    }
+
+    private var sourcePane: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: "folder").foregroundStyle(BrandTheme.hotOrange)
+                Text("FILE EXPLORER").font(.caption.weight(.bold)).tracking(0.8)
+                Spacer()
+                Button { model.openWorkspace() } label: { Image(systemName: "folder.badge.plus") }
+                    .buttonStyle(.borderless).help("Open project folder")
+                Button { model.refreshWorkspaceFiles() } label: { Image(systemName: "arrow.clockwise") }
+                    .buttonStyle(.borderless).help("Refresh files")
+                Button { model.createNewFile() } label: { Image(systemName: "doc.badge.plus") }
+                    .buttonStyle(.borderless).disabled(model.workspaceURL == nil).help("New file")
+                Button { model.saveCurrentFile() } label: { Image(systemName: "square.and.arrow.down") }
+                    .buttonStyle(.borderless)
+                    .disabled(model.selectedFileURL == nil || !model.fileIsDirty).help("Save file (⌘S)")
+            }
+            .padding(.horizontal, 10).padding(.vertical, 10)
+            Divider()
+
+            if model.workspaceURL == nil {
+                VStack(spacing: 10) {
+                    Image(systemName: "folder.badge.questionmark").font(.system(size: 30)).foregroundStyle(.secondary)
+                    Text("Open a project").font(.headline)
+                    Text("Choose a folder to browse and edit source files.")
+                        .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    Button("Open Folder…") { model.openWorkspace() }.buttonStyle(.borderedProminent)
+                }.frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                HSplitView {
+                    VStack(spacing: 0) {
+                        HStack {
+                            Text(model.workspaceURL?.lastPathComponent ?? "Files").font(.caption.weight(.semibold)).lineLimit(1)
+                            Spacer()
+                            Text("\(model.workspaceFiles.count)").font(.caption2).foregroundStyle(.secondary)
+                        }.padding(8)
+                        Divider()
+                        List {
+                            ForEach(model.workspaceFiles) { entry in
+                                Button {
+                                    if !entry.isDirectory { model.selectFile(entry.url) }
+                                } label: {
+                                    HStack(spacing: 5) {
+                                        Image(systemName: entry.isDirectory ? "folder.fill" : "doc.text")
+                                            .foregroundStyle(entry.isDirectory ? BrandTheme.hotOrange : Color.secondary)
+                                        Text(String(repeating: "  ", count: entry.depth) + entry.name).lineLimit(1)
+                                        Spacer(minLength: 0)
+                                    }.contentShape(Rectangle())
+                                }.buttonStyle(.plain).disabled(entry.isDirectory)
+                            }
+                        }.listStyle(.sidebar)
+                    }.frame(minWidth: 145, idealWidth: 205, maxWidth: 280)
+
+                    VStack(spacing: 0) {
+                        HStack(spacing: 7) {
+                            Image(systemName: "chevron.left.forwardslash.chevron.right").foregroundStyle(BrandTheme.hotOrange)
+                            Text(model.selectedFileURL?.lastPathComponent ?? "EDITOR").font(.caption.weight(.bold)).lineLimit(1)
+                            if model.fileIsDirty { Circle().fill(BrandTheme.hotOrange).frame(width: 6, height: 6) }
+                            Spacer()
+                            if let url = model.selectedFileURL {
+                                Text(url.pathExtension.uppercased()).font(.caption2).foregroundStyle(.secondary)
+                            }
+                        }.padding(9)
+                        Divider()
+                        if model.selectedFileURL == nil {
+                            ContentPlaceholder(symbol: "doc.text", title: "Select a file",
+                                               message: "Choose a text file in the explorer to edit its source.",
+                                               buttonTitle: nil, action: {})
+                        } else {
+                            TextEditor(text: $model.fileContent)
+                                .font(.system(.body, design: .monospaced))
+                                .scrollContentBackground(.hidden).padding(7)
+                                .onChange(of: model.fileContent) { _ in model.markFileDirty() }
+                        }
+                    }.frame(minWidth: 300)
+                }
+            }
+            HStack(spacing: 6) {
+                Circle().fill(model.fileIsDirty ? BrandTheme.hotOrange : Color.green).frame(width: 6, height: 6)
+                Text(model.fileIsDirty ? "Unsaved changes" : (model.workspaceURL?.path ?? "No project folder"))
+                    .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                Spacer()
+            }.padding(.horizontal, 9).padding(.vertical, 7).background(BrandTheme.panel)
+        }.background(BrandTheme.background)
+    }
+
+    private var previewPane: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 7) {
+                Image(systemName: "eye").foregroundStyle(BrandTheme.hotOrange)
+                Text("PREVIEW").font(.caption.weight(.bold)).tracking(0.8)
+                Spacer()
+                Button {
+                    if model.previewServerURL != nil { model.previewRefreshID = UUID() }
+                    else if model.previewFileURL != nil { model.refreshPreview() }
+                    else { model.startProjectPreviewServer() }
+                } label: {
+                    Image(systemName: model.previewServerURL == nil && model.previewFileURL == nil ? "play.fill" : "arrow.clockwise")
+                }
+                .buttonStyle(.borderless).help("Run or refresh preview")
+                .disabled(model.workspaceURL == nil || model.isStartingPreviewServer || model.isRunningCommand)
+                Button { model.stopProjectPreviewServer() } label: { Image(systemName: "stop.fill") }
+                    .buttonStyle(.borderless).help("Stop preview server").disabled(!model.isPreviewServerRunning)
+            }.padding(.horizontal, 10).padding(.vertical, 10)
+            Divider()
+            if let liveURL = model.previewServerURL {
+                LocalURLPreview(url: liveURL, refreshID: model.previewRefreshID)
+            } else if let htmlURL = model.previewFileURL, let root = model.workspaceURL {
+                LocalHTMLPreview(fileURL: htmlURL, accessRoot: root, refreshID: model.previewRefreshID)
+            } else {
+                VStack(spacing: 12) {
+                    Image(systemName: "macwindow.on.rectangle").font(.system(size: 34)).foregroundStyle(.secondary)
+                    Text("Live app preview").font(.headline)
+                    Text(model.workspaceURL == nil ? "Open a project folder to begin." :
+                         "Run the project's local development server to preview the real app here.")
+                        .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    Button {
+                        if model.workspaceURL == nil { model.openWorkspace() }
+                        else { model.startProjectPreviewServer() }
+                    } label: {
+                        Label(model.workspaceURL == nil ? "Open Project" : "Run Preview", systemImage: "play.fill")
+                    }.buttonStyle(.borderedProminent).disabled(model.isStartingPreviewServer || model.isRunningCommand)
+                    if !model.previewServerLog.isEmpty {
+                        Text(model.previewServerLog).font(.caption2.monospaced()).foregroundStyle(.secondary)
+                            .lineLimit(5).textSelection(.enabled)
+                    }
+                }.padding(18).frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }.background(BrandTheme.background)
+    }
+
+    private func submitComposer() {
+        guard !model.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        if composerMode == .build {
+            if model.createProjectFromChat(model.inputText) { composerMode = .chat }
+        } else {
+            model.sendMessage()
+        }
+    }
+}
+
 struct ProjectWorkspace: View {
     @ObservedObject var model: AppModel
 
