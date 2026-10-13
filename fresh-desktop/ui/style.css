@@ -70,29 +70,22 @@ html,body{background:#050505;color:#f5f2f1}
 @media(prefers-reduced-motion:no-preference){.primary,.send,.rail-action,.suggestions button,.tab,.tool-chip{transition:background-color .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease}}
 
 
-/* Requested workspace: chat above, live preview below; all preview tools stay in its top toolbar. */
+/* Reference-matched desktop workspace: chat on the left, preview/code/files on the right. */
 .workspace{
-  --builder-height:56%;
-  grid-template-columns:minmax(0,1fr);
-  grid-template-rows:minmax(300px,var(--builder-height)) 6px minmax(180px,1fr);
+  --builder-width:42%;
+  display:grid!important;
+  grid-template-columns:minmax(320px,var(--builder-width,42%)) 6px minmax(0,1fr)!important;
+  grid-template-rows:minmax(0,1fr)!important;
 }
-.builder{grid-column:1;grid-row:1;min-height:0;border-bottom:1px solid #29201f}
-.workspace-splitter{
-  grid-column:1;grid-row:2;width:auto;height:6px;min-height:6px;
-  cursor:row-resize;touch-action:none;
+.workspace>.builder{grid-column:1!important;grid-row:1!important;min-width:0;min-height:0;border-bottom:0;border-right:1px solid #29201f;}
+.workspace>#workspaceSplitter{
+  grid-column:2!important;grid-row:1!important;width:6px!important;height:auto!important;min-height:0!important;
+  cursor:col-resize!important;touch-action:none;
 }
-.workspace-splitter:after{top:-3px;bottom:-3px;left:0;right:0}
-.preview{grid-column:1;grid-row:3;min-height:0}
+.workspace>#workspaceSplitter:after{top:0!important;bottom:0!important;left:-3px!important;right:-3px!important;}
+.workspace>.preview{grid-column:3!important;grid-row:1!important;min-width:0;min-height:0;}
 .preview-tabs{position:relative;z-index:1;flex:0 0 48px;height:48px}
 @media(max-width:900px){
-  .workspace{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(300px,var(--builder-height)) 6px minmax(180px,1fr)}
-  .builder{padding:16px 18px 9px}
+  .workspace{grid-template-columns:minmax(260px,42%) 6px minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr)!important}
+  .builder{padding:16px 12px 9px}
 }
-
-
-/* Enforce the requested stacked builder layout in the packaged desktop window. */
-.workspace{display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:minmax(300px,var(--builder-height,56%)) 6px minmax(180px,1fr)!important;}
-.workspace>.builder{grid-column:1!important;grid-row:1!important;min-width:0;min-height:0;}
-.workspace>#workspaceSplitter{grid-column:1!important;grid-row:2!important;width:auto!important;height:6px!important;min-height:6px!important;cursor:row-resize!important;}
-.workspace>.preview{grid-column:1!important;grid-row:3!important;min-width:0;min-height:0;}
-.workspace>#workspaceSplitter:after{top:-3px!important;bottom:-3px!important;left:0!important;right:0!important;}
