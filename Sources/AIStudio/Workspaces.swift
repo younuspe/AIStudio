@@ -523,6 +523,73 @@ struct ProjectWorkspace: View {
                         }
                     }
                     .frame(minWidth: 360)
+
+                    VStack(spacing: 0) {
+                        HStack(spacing: 8) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("LIVE PREVIEW").font(.caption).fontWeight(.semibold)
+                                Text(model.previewServerURL?.absoluteString ?? model.previewFileURL?.lastPathComponent ?? "Not running")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer(minLength: 4)
+                            Button {
+                                if model.previewServerURL != nil {
+                                    model.previewRefreshID = UUID()
+                                } else if model.isPreviewServerRunning {
+                                    model.refreshPreview()
+                                } else {
+                                    model.startProjectPreviewServer()
+                                }
+                            } label: {
+                                Image(systemName: model.previewServerURL == nil ? "play.fill" : "arrow.clockwise")
+                            }
+                            .buttonStyle(.borderless)
+                            .help(model.previewServerURL == nil ? "Start the local development server" : "Refresh live preview")
+                            .disabled(model.isStartingPreviewServer || model.isRunningCommand)
+                        }
+                        .padding(10)
+                        Divider()
+
+                        if let liveURL = model.previewServerURL {
+                            LocalURLPreview(url: liveURL, refreshID: model.previewRefreshID)
+                        } else if let htmlURL = model.previewFileURL, let root = model.workspaceURL {
+                            LocalHTMLPreview(fileURL: htmlURL, accessRoot: root, refreshID: model.previewRefreshID)
+                        } else {
+                            VStack(spacing: 10) {
+                                Image(systemName: "macwindow.on.rectangle")
+                                    .font(.system(size: 30))
+                                    .foregroundStyle(.secondary)
+                                Text("Preview your app here")
+                                    .font(.headline)
+                                Text("Run the project's local development server to see the actual app beside its files and source.")
+                                    .font(.callout)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                                Button {
+                                    if model.previewFileURL != nil {
+                                        model.refreshPreview()
+                                    } else {
+                                        model.startProjectPreviewServer()
+                                    }
+                                } label: {
+                                    Label(model.isStartingPreviewServer ? "Starting…" : "Run Preview", systemImage: "play.fill")
+                                }
+                                .disabled(model.isStartingPreviewServer || model.isRunningCommand)
+                                if !model.previewServerLog.isEmpty {
+                                    Text(model.previewServerLog)
+                                        .font(.system(.caption2, design: .monospaced))
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(6)
+                                        .textSelection(.enabled)
+                                }
+                            }
+                            .padding(18)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                    }
+                    .frame(minWidth: 300)
                 }
             }
             StatusFooter(model: model)
