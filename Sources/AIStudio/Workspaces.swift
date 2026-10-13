@@ -401,6 +401,7 @@ private struct ChatMessageRow: View {
 struct BuilderWorkspace: View {
     @ObservedObject var model: AppModel
     @State private var composerMode: ChatComposerMode = .chat
+    @State private var collapsedDirectories: Set<String> = []
     @StateObject private var voiceInput = VoiceInputController()
     @State private var draftBeforeDictation = ""
 
@@ -556,6 +557,22 @@ struct BuilderWorkspace: View {
         .background(BrandTheme.background)
     }
 
+    private var visibleWorkspaceFiles: [WorkspaceEntry] {
+        guard let rootPath = model.workspaceURL?.standardizedFileURL.path else {
+            return []
+        }
+        return model.workspaceFiles.filter { entry in
+            var parent = entry.url.deletingLastPathComponent().standardizedFileURL.path
+            while parent != rootPath && parent.hasPrefix(rootPath + "/") {
+                if collapsedDirectories.contains(parent) { return false }
+                let nextParent = URL(fileURLWithPath: parent).deletingLastPathComponent().standardizedFileURL.path
+                if nextParent == parent { break }
+                parent = nextParent
+            }
+            return true
+        }
+    }
+
     private var sourcePane: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
@@ -575,6 +592,13 @@ struct BuilderWorkspace: View {
                     Image(systemName: "doc.badge.plus")
                 }
                 .buttonStyle(.borderless).disabled(model.workspaceURL == nil).help("New file")
+                Button {
+                    model.selectedSection = .visualEditor
+                } label: {
+                    Label("Edit tool", systemImage: "slider.horizontal.3")
+                }
+                .buttonStyle(.borderless)
+                .help("Open visual editing controls")
                 Button { model.saveCurrentFile() } label: {
                     Image(systemName: "square.and.arrow.down")
                 }
@@ -646,21 +670,38 @@ struct BuilderWorkspace: View {
                         .padding(8)
                         Divider()
                         List {
-                            ForEach(model.workspaceFiles) { entry in
+                            ForEach(visibleWorkspaceFiles) { entry in
                                 Button {
-                                    if !entry.isDirectory { model.selectFile(entry.url) }
+                                    if entry.isDirectory {
+                                        if collapsedDirectories.contains(entry.url.path) {
+                                            collapsedDirectories.remove(entry.url.path)
+                                        } else {
+                                            collapsedDirectories.insert(entry.url.path)
+                                        }
+                                    } else {
+                                        model.selectFile(entry.url)
+                                    }
                                 } label: {
                                     HStack(spacing: 5) {
-                                        Image(systemName: entry.isDirectory ? "folder.fill" : "doc.text")
-                                            .foregroundStyle(entry.isDirectory ? BrandTheme.hotOrange : Color.secondary)
-                                        Text(String(repeating: "  ", count: entry.depth) + entry.name)
+                                        if entry.isDirectory {
+                                            Image(systemName: collapsedDirectories.contains(entry.url.path) ? "chevron.right" : "chevron.down")
+                                                .font(.system(size: 9, weight: .semibold))
+                                                .frame(width: 10)
+                                            Image(systemName: "folder.fill")
+                                                .foregroundStyle(BrandTheme.hotOrange)
+                                        } else {
+                                            Image(systemName: "doc.text")
+                                                .foregroundStyle(Color.secondary)
+                                                .frame(width: 10)
+                                        }
+                                        Text(entry.name)
                                             .lineLimit(1)
                                         Spacer(minLength: 0)
                                     }
+                                    .padding(.leading, CGFloat(entry.depth) * 10)
                                     .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
-                                .disabled(entry.isDirectory)
                             }
                         }
                         .listStyle(.sidebar)
