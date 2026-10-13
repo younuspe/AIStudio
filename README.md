@@ -26,7 +26,7 @@ Image generation/editing requires a model/provider that supports image output: O
 
 ## Install the macOS app
 
-Open the [native macOS build workflow](https://github.com/younuspe/AIStudio/actions/workflows/native-macos-build.yml?query=branch%3Adesktop-productization), select the latest successful run, and download the `Supru-App-Builder-macOS-installer-ad-hoc-signed-not-notarized` artifact. Open the downloaded DMG and drag **Supru App Builder.app** to **Applications**. On first launch, Control-click the app in Finder and choose **Open** if macOS blocks it. This build is ad-hoc signed but not Apple-notarized.
+Do not install an older artifact while the reference-matched workspace changes are in progress. After the UI, pane resizing, interactions, and generation checks are complete, manually run the [native macOS build workflow](https://github.com/younuspe/AIStudio/actions/workflows/native-macos-build.yml?query=branch%3Adesktop-productization) and download the `Supru-App-Builder-macOS-installer-ad-hoc-signed-not-notarized` artifact from that exact run. Open the downloaded DMG and drag **Supru App Builder.app** to **Applications**. On first launch, Control-click the app in Finder and choose **Open** if macOS blocks it. This build is ad-hoc signed but not Apple-notarized.
 
 ## Build a standalone macOS app
 
@@ -66,6 +66,6 @@ Review generated code and shell commands before executing them. Chat attachments
 
 ## Workflow isolation and status
 
-All current desktop work is on the separate branch named desktop-productization in the AIStudio repository. The GitHub Actions build is configured only for pushes to that branch or a manual dispatch. It does not run for pull requests, and no pull request is created automatically. Commits made to this branch update the fork's branch only; they do not update the parent repository's public branch.
+All current desktop work is on the separate branch named desktop-productization in the AIStudio repository. The GitHub Actions build is temporarily configured for manual dispatch only, so pushes do not start a build while the reference-matched UI and functionality are being corrected. After the fixes are complete, start one manual build and use its artifact for testing. It does not run for pull requests, and no pull request is created automatically. Commits made to this branch update the fork's branch only; they do not update the parent repository's public branch.
 
 The app is not release-ready until the branch's automated build, startup smoke test, and live provider/file-workspace tests pass.
