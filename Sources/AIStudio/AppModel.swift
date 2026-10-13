@@ -322,9 +322,17 @@ final class AppModel: ObservableObject {
         let panel = NSSavePanel()
         panel.title = "Export Project as ZIP"
         panel.nameFieldStringValue = "\(root.lastPathComponent).zip"
+        panel.directoryURL = root.deletingLastPathComponent()
         panel.allowedContentTypes = [.zip]
         panel.canCreateDirectories = true
         guard panel.runModal() == .OK, let destination = panel.url else { return }
+        let standardizedRoot = root.standardizedFileURL.path
+        let standardizedDestination = destination.standardizedFileURL.path
+        guard standardizedDestination != standardizedRoot,
+              !standardizedDestination.hasPrefix(standardizedRoot + "/") else {
+            lastError = "Choose an export location outside the project folder to avoid including the ZIP inside itself."
+            return
+        }
 
         do {
             if fileManager.fileExists(atPath: destination.path) {
