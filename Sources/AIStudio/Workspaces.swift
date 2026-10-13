@@ -432,6 +432,21 @@ struct BuilderWorkspace: View {
                         .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                 }
                 Spacer()
+                Menu {
+                    ForEach(model.threads) { thread in
+                        Button {
+                            model.activeThreadID = thread.id
+                        } label: {
+                            Text(thread.title.isEmpty ? "New Chat" : thread.title)
+                        }
+                    }
+                    Divider()
+                    Button("New Chat") { model.newChat() }
+                } label: {
+                    Image(systemName: "clock.arrow.circlepath")
+                }
+                .menuStyle(.borderlessButton)
+                .help("Open chat history")
                 Button { model.newChat() } label: { Image(systemName: "plus") }
                     .buttonStyle(.borderless).help("New chat")
                 Button("Models") { model.selectedSection = .settings }.buttonStyle(.borderless)
