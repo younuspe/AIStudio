@@ -408,10 +408,10 @@ struct BuilderWorkspace: View {
         HSplitView {
             chatPane.frame(minWidth: 300, idealWidth: 390, maxWidth: 520)
             HSplitView {
-                sourcePane.frame(minWidth: 420, idealWidth: 660)
+                sourcePane.frame(minWidth: 450, idealWidth: 550)
                 previewPane.frame(minWidth: 280, idealWidth: 430)
             }
-            .frame(minWidth: 720)
+            .frame(minWidth: 735)
         }
         .background(BrandTheme.background)
         .onChange(of: voiceInput.transcript) { transcript in
