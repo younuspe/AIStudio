@@ -559,7 +559,7 @@ struct BuilderWorkspace: View {
                 Image(systemName: "folder").foregroundStyle(BrandTheme.hotOrange)
                 Text("FILE EXPLORER").font(.caption.weight(.bold)).tracking(0.8)
                 Spacer()
-                Button { model.openWorkspace() } label: { Image(systemName: "folder.badge.plus") }
+                Button { model.openWorkspace(navigateToProjects: false) } label: { Image(systemName: "folder.badge.plus") }
                     .buttonStyle(.borderless).help("Open project folder")
                 Button { model.refreshWorkspaceFiles() } label: { Image(systemName: "arrow.clockwise") }
                     .buttonStyle(.borderless).help("Refresh files")
@@ -584,7 +584,7 @@ struct BuilderWorkspace: View {
                     Text("Open a project").font(.headline)
                     Text("Choose a folder to browse and edit source files.")
                         .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                    Button("Open Folder…") { model.openWorkspace() }.buttonStyle(.borderedProminent)
+                    Button("Open Folder…") { model.openWorkspace(navigateToProjects: false) }.buttonStyle(.borderedProminent)
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 HSplitView {
@@ -652,7 +652,7 @@ struct BuilderWorkspace: View {
                 Spacer()
                 Button {
                     if model.previewServerURL != nil { model.previewRefreshID = UUID() }
-                    else if model.previewFileURL != nil { model.refreshPreview() }
+                    else if model.previewFileURL != nil { model.refreshPreview(navigateToVisualEditor: false) }
                     else { model.startProjectPreviewServer() }
                 } label: {
                     Image(systemName: model.previewServerURL == nil && model.previewFileURL == nil ? "play.fill" : "arrow.clockwise")
@@ -675,7 +675,7 @@ struct BuilderWorkspace: View {
                          "Run the project's local development server to preview the real app here.")
                         .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
                     Button {
-                        if model.workspaceURL == nil { model.openWorkspace() }
+                        if model.workspaceURL == nil { model.openWorkspace(navigateToProjects: false) }
                         else { model.startProjectPreviewServer() }
                     } label: {
                         Label(model.workspaceURL == nil ? "Open Project" : "Run Preview", systemImage: "play.fill")
