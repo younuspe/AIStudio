@@ -406,12 +406,15 @@ struct BuilderWorkspace: View {
 
     var body: some View {
         HSplitView {
-            chatPane.frame(minWidth: 300, idealWidth: 390, maxWidth: 520)
-            HSplitView {
-                sourcePane.frame(minWidth: 450, idealWidth: 550)
-                previewPane.frame(minWidth: 280, idealWidth: 430)
+            sourcePane
+                .frame(minWidth: 500, idealWidth: 760)
+            VSplitView {
+                previewPane
+                    .frame(minHeight: 240, idealHeight: 420)
+                chatPane
+                    .frame(minHeight: 250, idealHeight: 360)
             }
-            .frame(minWidth: 735)
+            .frame(minWidth: 380, idealWidth: 480)
         }
         .background(BrandTheme.background)
         .onChange(of: voiceInput.transcript) { transcript in
@@ -556,44 +559,91 @@ struct BuilderWorkspace: View {
     private var sourcePane: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                Image(systemName: "folder").foregroundStyle(BrandTheme.hotOrange)
-                Text("FILE EXPLORER").font(.caption.weight(.bold)).tracking(0.8)
+                Image(systemName: "chevron.left.forwardslash.chevron.right")
+                    .foregroundStyle(BrandTheme.hotOrange)
+                Text("CODE WORKSPACE").font(.caption.weight(.bold)).tracking(0.8)
                 Spacer()
-                Button { model.openWorkspace(navigateToProjects: false) } label: { Image(systemName: "folder.badge.plus") }
-                    .buttonStyle(.borderless).help("Open project folder")
-                Button { model.refreshWorkspaceFiles() } label: { Image(systemName: "arrow.clockwise") }
-                    .buttonStyle(.borderless).help("Refresh files")
-                Button { model.createNewFile() } label: { Image(systemName: "doc.badge.plus") }
-                    .buttonStyle(.borderless).disabled(model.workspaceURL == nil).help("New file")
-                Button { model.createNewFolder() } label: { Image(systemName: "folder.badge.plus") }
-                    .buttonStyle(.borderless).disabled(model.workspaceURL == nil).help("New folder")
-                Button { model.renameSelectedFile() } label: { Image(systemName: "pencil") }
-                    .buttonStyle(.borderless).disabled(model.selectedFileURL == nil).help("Rename selected file")
-                Button { model.deleteSelectedFile() } label: { Image(systemName: "trash") }
-                    .buttonStyle(.borderless).disabled(model.selectedFileURL == nil).help("Delete selected file")
-                Button { model.saveCurrentFile() } label: { Image(systemName: "square.and.arrow.down") }
-                    .buttonStyle(.borderless)
-                    .disabled(model.selectedFileURL == nil || !model.fileIsDirty).help("Save file (⌘S)")
+                Button { model.openWorkspace(navigateToProjects: false) } label: {
+                    Image(systemName: "folder.badge.plus")
+                }
+                .buttonStyle(.borderless).help("Open project folder")
+                Button { model.refreshWorkspaceFiles() } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.borderless).help("Refresh project files")
+                Button { model.createNewFile() } label: {
+                    Image(systemName: "doc.badge.plus")
+                }
+                .buttonStyle(.borderless).disabled(model.workspaceURL == nil).help("New file")
+                Button { model.saveCurrentFile() } label: {
+                    Image(systemName: "square.and.arrow.down")
+                }
+                .buttonStyle(.borderless)
+                .disabled(model.selectedFileURL == nil || !model.fileIsDirty)
+                .help("Save file (⌘S)")
             }
             .padding(.horizontal, 10).padding(.vertical, 10)
             Divider()
 
             if model.workspaceURL == nil {
                 VStack(spacing: 10) {
-                    Image(systemName: "folder.badge.questionmark").font(.system(size: 30)).foregroundStyle(.secondary)
+                    Image(systemName: "folder.badge.questionmark")
+                        .font(.system(size: 30)).foregroundStyle(.secondary)
                     Text("Open a project").font(.headline)
                     Text("Choose a folder to browse and edit source files.")
                         .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                    Button("Open Folder…") { model.openWorkspace(navigateToProjects: false) }.buttonStyle(.borderedProminent)
-                }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                    Button("Open Folder…") {
+                        model.openWorkspace(navigateToProjects: false)
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 HSplitView {
                     VStack(spacing: 0) {
+                        HStack(spacing: 7) {
+                            Image(systemName: "doc.text")
+                                .foregroundStyle(BrandTheme.hotOrange)
+                            Text(model.selectedFileURL?.lastPathComponent ?? "EDITOR")
+                                .font(.caption.weight(.bold)).lineLimit(1)
+                            if model.fileIsDirty {
+                                Circle().fill(BrandTheme.hotOrange).frame(width: 6, height: 6)
+                            }
+                            Spacer(minLength: 4)
+                            if let url = model.selectedFileURL {
+                                Text(url.pathExtension.uppercased())
+                                    .font(.caption2).foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(9)
+                        Divider()
+                        if model.selectedFileURL == nil {
+                            ContentPlaceholder(
+                                symbol: "doc.text",
+                                title: "Select a file",
+                                message: "Choose a file in the explorer to edit its source.",
+                                buttonTitle: nil,
+                                action: {}
+                            )
+                        } else {
+                            TextEditor(text: $model.fileContent)
+                                .font(.system(.body, design: .monospaced))
+                                .scrollContentBackground(.hidden)
+                                .padding(7)
+                                .onChange(of: model.fileContent) { _ in model.markFileDirty() }
+                        }
+                    }
+                    .frame(minWidth: 300, idealWidth: 560)
+
+                    VStack(spacing: 0) {
                         HStack {
-                            Text(model.workspaceURL?.lastPathComponent ?? "Files").font(.caption.weight(.semibold)).lineLimit(1)
+                            Text(model.workspaceURL?.lastPathComponent ?? "Files")
+                                .font(.caption.weight(.semibold)).lineLimit(1)
                             Spacer()
-                            Text("\(model.workspaceFiles.count)").font(.caption2).foregroundStyle(.secondary)
-                        }.padding(8)
+                            Text("\(model.workspaceFiles.count)")
+                                .font(.caption2).foregroundStyle(.secondary)
+                        }
+                        .padding(8)
                         Divider()
                         List {
                             ForEach(model.workspaceFiles) { entry in
@@ -603,45 +653,43 @@ struct BuilderWorkspace: View {
                                     HStack(spacing: 5) {
                                         Image(systemName: entry.isDirectory ? "folder.fill" : "doc.text")
                                             .foregroundStyle(entry.isDirectory ? BrandTheme.hotOrange : Color.secondary)
-                                        Text(String(repeating: "  ", count: entry.depth) + entry.name).lineLimit(1)
+                                        Text(String(repeating: "  ", count: entry.depth) + entry.name)
+                                            .lineLimit(1)
                                         Spacer(minLength: 0)
-                                    }.contentShape(Rectangle())
-                                }.buttonStyle(.plain).disabled(entry.isDirectory)
+                                    }
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(entry.isDirectory)
                             }
-                        }.listStyle(.sidebar)
-                    }.frame(minWidth: 145, idealWidth: 205, maxWidth: 280)
-
-                    VStack(spacing: 0) {
-                        HStack(spacing: 7) {
-                            Image(systemName: "chevron.left.forwardslash.chevron.right").foregroundStyle(BrandTheme.hotOrange)
-                            Text(model.selectedFileURL?.lastPathComponent ?? "EDITOR").font(.caption.weight(.bold)).lineLimit(1)
-                            if model.fileIsDirty { Circle().fill(BrandTheme.hotOrange).frame(width: 6, height: 6) }
-                            Spacer()
-                            if let url = model.selectedFileURL {
-                                Text(url.pathExtension.uppercased()).font(.caption2).foregroundStyle(.secondary)
-                            }
-                        }.padding(9)
-                        Divider()
-                        if model.selectedFileURL == nil {
-                            ContentPlaceholder(symbol: "doc.text", title: "Select a file",
-                                               message: "Choose a text file in the explorer to edit its source.",
-                                               buttonTitle: nil, action: {})
-                        } else {
-                            TextEditor(text: $model.fileContent)
-                                .font(.system(.body, design: .monospaced))
-                                .scrollContentBackground(.hidden).padding(7)
-                                .onChange(of: model.fileContent) { _ in model.markFileDirty() }
                         }
-                    }.frame(minWidth: 300)
+                        .listStyle(.sidebar)
+                    }
+                    .frame(minWidth: 150, idealWidth: 220, maxWidth: 300)
                 }
             }
+
             HStack(spacing: 6) {
-                Circle().fill(model.fileIsDirty ? BrandTheme.hotOrange : Color.green).frame(width: 6, height: 6)
-                Text(model.fileIsDirty ? "Unsaved changes" : (model.workspaceURL?.path ?? "No project folder"))
+                Circle()
+                    .fill(model.fileIsDirty ? BrandTheme.hotOrange : Color.green)
+                    .frame(width: 6, height: 6)
+                Text(model.fileIsDirty ? "Unsaved changes" :
+                     (model.workspaceURL?.path ?? "No project folder"))
                     .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                 Spacer()
-            }.padding(.horizontal, 9).padding(.vertical, 7).background(BrandTheme.panel)
-        }.background(BrandTheme.background)
+                if model.workspaceURL != nil {
+                    Button("New Folder") { model.createNewFolder() }
+                        .buttonStyle(.borderless)
+                    Button("Rename") { model.renameSelectedFile() }
+                        .buttonStyle(.borderless).disabled(model.selectedFileURL == nil)
+                    Button("Delete") { model.deleteSelectedFile() }
+                        .buttonStyle(.borderless).disabled(model.selectedFileURL == nil)
+                }
+            }
+            .padding(.horizontal, 9).padding(.vertical, 7)
+            .background(BrandTheme.panel)
+        }
+        .background(BrandTheme.background)
     }
 
     private var previewPane: some View {
