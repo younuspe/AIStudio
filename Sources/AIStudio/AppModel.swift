@@ -1020,7 +1020,8 @@ final class AppModel: ObservableObject {
                     Self.normalizeProjectPath($0.path).lowercased() == "package.json"
                 }) {
                     guard let manifestData = packageFile.content.data(using: .utf8),
-                          let manifest = try? JSONSerialization.jsonObject(with: manifestData) as? [String: Any] else {
+                          let decodedManifest = try? JSONSerialization.jsonObject(with: manifestData),
+                          let manifest = decodedManifest as? [String: Any] else {
                         throw NSError(domain: "SupruGenerationValidation", code: 2,
                                       userInfo: [NSLocalizedDescriptionKey: "Generated package.json is not valid JSON. No project files were written."])
                     }
