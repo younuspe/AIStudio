@@ -63,6 +63,51 @@ struct MainWindow: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
+            Spacer(minLength: 16)
+
+            Rectangle()
+                .fill(BrandTheme.border)
+                .frame(height: 1)
+
+            Text("WORKSPACE")
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .tracking(1.5)
+                .foregroundStyle(BrandTheme.muted)
+                .padding(.horizontal, 16)
+                .padding(.top, 20)
+                .padding(.bottom, 8)
+
+            VStack(spacing: 4) {
+                sectionButton(.chat)
+                sectionButton(.generativeStudio)
+                sectionButton(.projects)
+                sectionButton(.visualEditor)
+                sectionButton(.developerTools)
+            }
+            .padding(.horizontal, 9)
+
+            Spacer(minLength: 16)
+
+            Rectangle()
+                .fill(BrandTheme.border)
+                .frame(height: 1)
+
+            sectionButton(.settings)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 10)
+
+            HStack(spacing: 7) {
+                Circle()
+                    .fill(BrandTheme.hotOrange)
+                    .frame(width: 6, height: 6)
+                    .shadow(color: BrandTheme.hotOrange.opacity(0.75), radius: 5)
+                Text("Supru • Ready to build")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(BrandTheme.muted)
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 15)
+
             HStack(alignment: .center, spacing: 11) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 13)
@@ -121,51 +166,9 @@ struct MainWindow: View {
                 }
             }
             .padding(.horizontal, 17)
-            .padding(.top, 24)
-            .padding(.bottom, 22)
 
-            Rectangle()
-                .fill(BrandTheme.border)
-                .frame(height: 1)
-
-            Text("WORKSPACE")
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
-                .tracking(1.5)
-                .foregroundStyle(BrandTheme.muted)
-                .padding(.horizontal, 16)
-                .padding(.top, 20)
-                .padding(.bottom, 8)
-
-            VStack(spacing: 4) {
-                sectionButton(.chat)
-                sectionButton(.generativeStudio)
-                sectionButton(.projects)
-                sectionButton(.visualEditor)
-                sectionButton(.developerTools)
-            }
-            .padding(.horizontal, 9)
-
-            Spacer(minLength: 16)
-
-            Rectangle()
-                .fill(BrandTheme.border)
-                .frame(height: 1)
-
-            sectionButton(.settings)
-                .padding(.horizontal, 9)
-                .padding(.vertical, 10)
-
-            HStack(spacing: 7) {
-                Circle()
-                    .fill(BrandTheme.hotOrange)
-                    .frame(width: 6, height: 6)
-                    .shadow(color: BrandTheme.hotOrange.opacity(0.75), radius: 5)
-                Text("Supru • Ready to build")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(BrandTheme.muted)
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 15)
+            .padding(.top, 12)
+            .padding(.bottom, 18)
         }
         .background(BrandTheme.panel)
     }
