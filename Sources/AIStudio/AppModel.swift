@@ -354,7 +354,7 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func openWorkspace() {
+    func openWorkspace(navigateToProjects: Bool = true) {
         let panel = NSOpenPanel()
         panel.title = "Open a project folder"
         panel.message = "Choose a folder to browse, edit, or generate project files."
@@ -378,7 +378,7 @@ final class AppModel: ObservableObject {
         refreshWorkspaceFiles()
         saveState()
         statusMessage = "Opened \(url.lastPathComponent)"
-        selectedSection = .projects
+        if navigateToProjects { selectedSection = .projects }
     }
 
     func refreshWorkspaceFiles() {
@@ -1197,12 +1197,12 @@ final class AppModel: ObservableObject {
         return text
     }
 
-    func refreshPreview() {
+    func refreshPreview(navigateToVisualEditor: Bool = true) {
         if isPreviewServerRunning, previewServerURL != nil {
             previewRefreshID = UUID()
             lastError = nil
             statusMessage = "Reloading live project preview."
-            selectedSection = .visualEditor
+            if navigateToVisualEditor { selectedSection = .visualEditor }
             return
         }
         guard let root = workspaceURL else {
@@ -1222,7 +1222,7 @@ final class AppModel: ObservableObject {
         }
         previewRefreshID = UUID()
         lastError = nil
-        selectedSection = .visualEditor
+        if navigateToVisualEditor { selectedSection = .visualEditor }
     }
 
     func startProjectPreviewServer() {
