@@ -25,30 +25,33 @@ enum MainSection: String, CaseIterable, Identifiable {
 
 struct MainWindow: View {
     @ObservedObject var model: AppModel
+    @State private var showPublishInfo = false
 
-    private var activeSection: MainSection {
-        model.selectedSection ?? .chat
-    }
+    private var activeSection: MainSection { model.selectedSection ?? .chat }
 
     var body: some View {
-        HStack(spacing: 0) {
-            sidebar
-                .frame(width: 246)
-            Rectangle()
-                .fill(BrandTheme.border)
-                .frame(width: 1)
-
+        VStack(spacing: 0) {
+            topToolbar
+            Divider()
+            workspaceToolbar
+            Divider()
             Group {
                 switch activeSection {
-                case .chat: ChatWorkspace(model: model)
-                case .generativeStudio: GenerativeStudioWorkspace(model: model)
-                case .projects: ProjectWorkspace(model: model)
-                case .visualEditor: VisualEditorWorkspace(model: model)
-                case .developerTools: DeveloperToolsWorkspace(model: model)
-                case .settings: SettingsWorkspace(model: model)
+                case .chat:
+                    BuilderWorkspace(model: model)
+                case .generativeStudio:
+                    GenerativeStudioWorkspace(model: model)
+                case .projects:
+                    ProjectWorkspace(model: model)
+                case .visualEditor:
+                    VisualEditorWorkspace(model: model)
+                case .developerTools:
+                    DeveloperToolsWorkspace(model: model)
+                case .settings:
+                    SettingsWorkspace(model: model)
                 }
             }
-            .frame(minWidth: 850, minHeight: 560)
+            .frame(minWidth: 1000, minHeight: 600)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(BrandTheme.background)
         }
@@ -56,160 +59,136 @@ struct MainWindow: View {
         .background(BrandTheme.background)
         .preferredColorScheme(.dark)
         .tint(BrandTheme.hotOrange)
+        .alert("Publishing is not configured yet", isPresented: $showPublishInfo) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Your project can be exported as a ZIP now. To publish it, connect a deployment provider or deploy it using the hosting service of your choice.")
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
             model.stopProjectPreviewServer()
         }
     }
 
-    private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Spacer(minLength: 16)
-
-            Rectangle()
-                .fill(BrandTheme.border)
-                .frame(height: 1)
-
-            Text("WORKSPACE")
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
-                .tracking(1.5)
-                .foregroundStyle(BrandTheme.muted)
-                .padding(.horizontal, 16)
-                .padding(.top, 20)
-                .padding(.bottom, 8)
-
-            VStack(spacing: 4) {
-                sectionButton(.chat)
-                sectionButton(.generativeStudio)
-                sectionButton(.projects)
-                sectionButton(.visualEditor)
-                sectionButton(.developerTools)
+    private var topToolbar: some View {
+        HStack(spacing: 12) {
+            Button {
+                model.selectedSection = .chat
+            } label: {
+                Label("Back to start", systemImage: "arrow.left")
             }
-            .padding(.horizontal, 9)
+            .buttonStyle(.borderless)
+            .help("Return to the unified builder workspace")
 
-            Spacer(minLength: 16)
+            Spacer(minLength: 12)
 
-            Rectangle()
-                .fill(BrandTheme.border)
-                .frame(height: 1)
-
-            sectionButton(.settings)
-                .padding(.horizontal, 9)
-                .padding(.vertical, 10)
-
-            HStack(spacing: 7) {
-                Circle()
-                    .fill(BrandTheme.hotOrange)
-                    .frame(width: 6, height: 6)
-                    .shadow(color: BrandTheme.hotOrange.opacity(0.75), radius: 5)
-                Text("Supru • Ready to build")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(BrandTheme.muted)
+            HStack(spacing: 9) {
+                if let iconURL = Bundle.main.url(forResource: "Supru", withExtension: "jpg"),
+                   let supruIcon = NSImage(contentsOf: iconURL) {
+                    Image(nsImage: supruIcon)
+                        .resizable().scaledToFill().frame(width: 23, height: 23)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(BrandTheme.hotOrange.opacity(0.7), lineWidth: 1))
+                }
+                Text("Supru AI")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.9))
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 15)
 
-            HStack(alignment: .center, spacing: 11) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 13)
-                        .fill(
-                            LinearGradient(
-                                colors: [BrandTheme.hotOrange.opacity(0.65), BrandTheme.deepRed.opacity(0.7)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 44, height: 44)
-                        .blur(radius: 8)
+            Spacer(minLength: 12)
 
-                    if let iconURL = Bundle.main.url(forResource: "Supru", withExtension: "jpg"),
-                       let supruIcon = NSImage(contentsOf: iconURL) {
-                        Image(nsImage: supruIcon)
-                            .resizable()
-                            .interpolation(.high)
-                            .scaledToFill()
-                            .frame(width: 40, height: 40)
-                            .clipShape(RoundedRectangle(cornerRadius: 11))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 11)
-                                    .stroke(BrandTheme.hotOrange.opacity(0.75), lineWidth: 1)
-                            )
-                            .shadow(color: BrandTheme.hotOrange.opacity(0.38), radius: 9, x: 0, y: 0)
+            Button {
+                model.newChat()
+                model.selectedSection = .chat
+            } label: {
+                Label("Remix", systemImage: "arrow.triangle.2.circlepath")
+            }
+            .buttonStyle(.borderless)
+            .help("Start a fresh chat")
+
+            Button {
+                if let projectURL = model.workspaceURL {
+                    NSWorkspace.shared.activateFileViewerSelecting([projectURL])
+                } else {
+                    model.openWorkspace()
+                }
+            } label: {
+                Label("Share", systemImage: "square.and.arrow.up")
+            }
+            .buttonStyle(.borderless)
+            .help("Reveal the current project folder in Finder")
+
+            Button { showPublishInfo = true } label: {
+                Label("Publish", systemImage: "globe")
+            }
+            .buttonStyle(.borderless)
+            .help("Publishing setup information")
+
+            Menu {
+                Button("Export project as ZIP…") { model.exportWorkspaceArchive() }
+                    .disabled(model.workspaceURL == nil)
+                Button("Reveal project in Finder") {
+                    if let projectURL = model.workspaceURL {
+                        NSWorkspace.shared.activateFileViewerSelecting([projectURL])
                     } else {
-                        Image(systemName: "cat.fill")
-                            .font(.system(size: 25, weight: .bold))
-                            .foregroundStyle(BrandTheme.hotOrange)
-                            .frame(width: 40, height: 40)
+                        model.openWorkspace()
                     }
                 }
-
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Supru")
-                        .font(.system(size: 29, weight: .black, design: .rounded))
-                        .tracking(-1.0)
-                        .foregroundStyle(Color(red: 0.015, green: 0.015, blue: 0.018))
-                        .shadow(color: BrandTheme.hotOrange.opacity(0.95), radius: 5, x: 0, y: 0)
-                        .shadow(color: BrandTheme.deepRed.opacity(0.8), radius: 13, x: 0, y: 0)
-                        .shadow(color: BrandTheme.deepRed.opacity(0.42), radius: 22, x: 0, y: 0)
-
-                    Text("App Builder")
-                        .font(.system(size: 17, weight: .heavy, design: .rounded))
-                        .tracking(-0.25)
-                        .foregroundStyle(BrandTheme.appBuilderGradient)
-                        .shadow(color: Color.white.opacity(0.28), radius: 1.5, x: 0, y: 1)
-                        .shadow(color: BrandTheme.deepRed.opacity(0.22), radius: 5, x: 0, y: 0)
-
-                    Text("BUILD • PREVIEW • REFINE")
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
-                        .tracking(1.35)
-                        .foregroundStyle(BrandTheme.muted)
-                        .padding(.top, 5)
-                }
+                .disabled(model.workspaceURL == nil)
+            } label: {
+                Label("Export", systemImage: "square.and.arrow.down")
             }
-            .padding(.horizontal, 17)
+            .menuStyle(.borderlessButton)
 
-            .padding(.top, 12)
-            .padding(.bottom, 18)
+            Button {
+                model.selectedSection = .settings
+            } label: {
+                Image(systemName: "gearshape")
+            }
+            .buttonStyle(.borderless)
+            .help("Providers and settings")
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
         .background(BrandTheme.panel)
     }
 
-    private func sectionButton(_ section: MainSection) -> some View {
-        let isSelected = activeSection == section
-
-        return Button {
-            model.selectedSection = section
-        } label: {
-            HStack(spacing: 11) {
-                Image(systemName: section.symbol)
-                    .font(.system(size: 14, weight: .semibold))
-                    .frame(width: 19)
-                    .foregroundStyle(isSelected ? BrandTheme.hotOrange : BrandTheme.muted)
-
-                Text(section.rawValue)
-                    .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
-                    .foregroundStyle(isSelected ? Color.white : Color.white.opacity(0.70))
-
-                Spacer(minLength: 0)
-
-                if isSelected {
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(BrandTheme.hotOrange)
-                        .frame(width: 3, height: 19)
-                        .shadow(color: BrandTheme.hotOrange.opacity(0.7), radius: 5)
+    private var workspaceToolbar: some View {
+        HStack(spacing: 5) {
+            ForEach(MainSection.allCases) { section in
+                Button {
+                    model.selectedSection = section
+                } label: {
+                    HStack(spacing: 7) {
+                        Image(systemName: section.symbol)
+                            .font(.system(size: 12, weight: .medium))
+                        Text(section.rawValue)
+                            .font(.system(size: 11, weight: activeSection == section ? .semibold : .regular))
+                    }
+                    .foregroundStyle(activeSection == section ? Color.white : BrandTheme.muted)
+                    .padding(.horizontal, 11)
+                    .frame(height: 32)
+                    .background(
+                        RoundedRectangle(cornerRadius: 7)
+                            .fill(activeSection == section ? BrandTheme.hotOrange.opacity(0.14) : Color.clear)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 7)
+                            .stroke(activeSection == section ? BrandTheme.hotOrange.opacity(0.42) : Color.clear, lineWidth: 1)
+                    )
                 }
+                .buttonStyle(.plain)
+                .help(section.rawValue)
             }
-            .padding(.horizontal, 11)
-            .frame(height: 39)
-            .background(
-                RoundedRectangle(cornerRadius: 9)
-                    .fill(isSelected ? BrandTheme.hotOrange.opacity(0.12) : Color.clear)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 9)
-                    .stroke(isSelected ? BrandTheme.hotOrange.opacity(0.38) : Color.clear, lineWidth: 1)
-            )
+            Spacer()
+            HStack(spacing: 6) {
+                Circle().fill(BrandTheme.hotOrange).frame(width: 6, height: 6)
+                Text(model.statusMessage ?? (model.workspaceURL == nil ? "Ready" : model.workspaceURL!.lastPathComponent))
+                    .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+            }
+            .frame(maxWidth: 230, alignment: .trailing)
         }
-        .buttonStyle(.plain)
-        .help(section.rawValue)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(BrandTheme.background)
     }
 }
