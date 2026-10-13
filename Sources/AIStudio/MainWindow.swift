@@ -130,10 +130,10 @@ struct MainWindow: View {
             .help("Share the current project folder")
 
             Button { showPublishInfo = true } label: {
-                Label("Publish", systemImage: "globe")
+                Label("Publish (not configured)", systemImage: "globe")
             }
             .buttonStyle(.borderless)
-            .help("Publishing setup information")
+            .help("Publishing is unavailable until a deployment provider is configured")
 
             Menu {
                 Button("Export project as ZIP…") { model.exportWorkspaceArchive() }
