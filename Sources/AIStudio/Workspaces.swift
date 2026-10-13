@@ -406,16 +406,19 @@ struct BuilderWorkspace: View {
     @State private var draftBeforeDictation = ""
 
     var body: some View {
+        // Keep the chat persistently on the left. The work area on the right
+        // places the live preview beside the source editor, matching the
+        // reference layout and avoiding the previous preview-over-chat stack.
         HSplitView {
-            sourcePane
-                .frame(minWidth: 500, idealWidth: 760)
-            VSplitView {
+            chatPane
+                .frame(minWidth: 290, idealWidth: 340)
+            HSplitView {
                 previewPane
-                    .frame(minHeight: 240, idealHeight: 420)
-                chatPane
-                    .frame(minHeight: 250, idealHeight: 360)
+                    .frame(minWidth: 300, idealWidth: 440)
+                sourcePane
+                    .frame(minWidth: 380, idealWidth: 520)
             }
-            .frame(minWidth: 380, idealWidth: 480)
+            .frame(minWidth: 720, idealWidth: 960)
         }
         .background(BrandTheme.background)
         .onChange(of: voiceInput.transcript) { transcript in
