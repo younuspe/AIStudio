@@ -11,6 +11,11 @@ struct AIStudioApp: App {
         }
         .windowStyle(.titleBar)
         .commands {
+            CommandGroup(replacing: .saveItem) {
+                Button("Save File") { model.saveCurrentFile() }
+                    .keyboardShortcut("s", modifiers: .command)
+                    .disabled(model.selectedFileURL == nil || !model.fileIsDirty)
+            }
             CommandGroup(replacing: .newItem) {
                 Button("New Chat") { model.newChat() }
                     .keyboardShortcut("n", modifiers: .command)
