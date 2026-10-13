@@ -106,7 +106,10 @@ struct MainWindow: View {
             .help("Start a fresh chat")
 
             Button {
-                if let projectURL = model.workspaceURL {
+                if let projectURL = model.workspaceURL, let contentView = NSApp.keyWindow?.contentView {
+                    let picker = NSSharingServicePicker(items: [projectURL])
+                    picker.show(relativeTo: contentView.bounds, of: contentView, preferredEdge: .minY)
+                } else if let projectURL = model.workspaceURL {
                     NSWorkspace.shared.activateFileViewerSelecting([projectURL])
                 } else {
                     model.openWorkspace()
@@ -115,7 +118,7 @@ struct MainWindow: View {
                 Label("Share", systemImage: "square.and.arrow.up")
             }
             .buttonStyle(.borderless)
-            .help("Reveal the current project folder in Finder")
+            .help("Share the current project folder")
 
             Button { showPublishInfo = true } label: {
                 Label("Publish", systemImage: "globe")
