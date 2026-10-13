@@ -1034,8 +1034,14 @@ final class AppModel: ObservableObject {
                                       userInfo: [NSLocalizedDescriptionKey: "Generated package.json is not valid JSON. No project files were written."])
                     }
                     let scripts = manifest["scripts"] as? [String: Any] ?? [:]
-                    let hasDevelopmentScript = scripts["dev"] is String || scripts["start"] is String
-                    let hasBuildScript = scripts["build"] is String
+                    let hasDevelopmentScript = ["dev", "start"].contains { name in
+                        guard let command = scripts[name] as? String else { return false }
+                        return !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    }
+                    let hasBuildScript: Bool = {
+                        guard let command = scripts["build"] as? String else { return false }
+                        return !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    }()
                     guard hasDevelopmentScript, hasBuildScript else {
                         throw NSError(domain: "SupruGenerationValidation", code: 3,
                                       userInfo: [NSLocalizedDescriptionKey: "Generated package.json must include working development (dev or start) and build scripts. No project files were written."])
