@@ -550,6 +550,12 @@ struct BuilderWorkspace: View {
                     .buttonStyle(.borderless).help("Refresh files")
                 Button { model.createNewFile() } label: { Image(systemName: "doc.badge.plus") }
                     .buttonStyle(.borderless).disabled(model.workspaceURL == nil).help("New file")
+                Button { model.createNewFolder() } label: { Image(systemName: "folder.badge.plus") }
+                    .buttonStyle(.borderless).disabled(model.workspaceURL == nil).help("New folder")
+                Button { model.renameSelectedFile() } label: { Image(systemName: "pencil") }
+                    .buttonStyle(.borderless).disabled(model.selectedFileURL == nil).help("Rename selected file")
+                Button { model.deleteSelectedFile() } label: { Image(systemName: "trash") }
+                    .buttonStyle(.borderless).disabled(model.selectedFileURL == nil).help("Delete selected file")
                 Button { model.saveCurrentFile() } label: { Image(systemName: "square.and.arrow.down") }
                     .buttonStyle(.borderless)
                     .disabled(model.selectedFileURL == nil || !model.fileIsDirty).help("Save file (⌘S)")
