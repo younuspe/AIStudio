@@ -947,6 +947,16 @@ final class AppModel: ObservableObject {
                         add no unrequested paths, use no Markdown fences, and put no explanation outside the JSON object.
                         """
                     }
+                    let priorGeneratedContext = generatedFiles.suffix(6).map { file in
+                        let excerpt = String(file.content.prefix(1_600))
+                        return "FILE: \(file.path)\n--- GENERATED SOURCE REFERENCE ---\n\(excerpt)"
+                    }.joined(separator: "\n\n")
+                    let continuityContext = priorGeneratedContext.isEmpty
+                        ? "This is the first batch; establish clear, reusable interfaces for the planned architecture."
+                        : """
+                          Previously generated source files (reference only; do not return these again):
+                          \(priorGeneratedContext)
+                          """
                     let fileReply = try await AIProviderClient.complete(
                         provider: provider,
                         apiKey: key,
@@ -958,10 +968,12 @@ final class AppModel: ObservableObject {
                                 Overall project requirements:
                                 \(requestText)
 
+                                \(continuityContext)
+
                                 Generate complete file content for this batch:
                                 \(batchList)
 
-                                Ensure imports, paths, commands, and package scripts are mutually consistent.
+                                Keep imports, exported symbols, route names, data contracts, and package scripts consistent with the previous batches.
                                 """
                             )
                         ]
