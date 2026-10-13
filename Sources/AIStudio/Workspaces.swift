@@ -650,11 +650,7 @@ struct BuilderWorkspace: View {
                 Image(systemName: "eye").foregroundStyle(BrandTheme.hotOrange)
                 Text("PREVIEW").font(.caption.weight(.bold)).tracking(0.8)
                 Spacer()
-                Button {
-                    if model.previewServerURL != nil { model.previewRefreshID = UUID() }
-                    else if model.previewFileURL != nil { model.refreshPreview(navigateToVisualEditor: false) }
-                    else { model.startProjectPreviewServer() }
-                } label: {
+                Button { runOrRefreshPreview() } label: {
                     Image(systemName: model.previewServerURL == nil && model.previewFileURL == nil ? "play.fill" : "arrow.clockwise")
                 }
                 .buttonStyle(.borderless).help("Run or refresh preview")
@@ -676,7 +672,7 @@ struct BuilderWorkspace: View {
                         .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
                     Button {
                         if model.workspaceURL == nil { model.openWorkspace(navigateToProjects: false) }
-                        else { model.startProjectPreviewServer() }
+                        else { runOrRefreshPreview() }
                     } label: {
                         Label(model.workspaceURL == nil ? "Open Project" : "Run Preview", systemImage: "play.fill")
                     }.buttonStyle(.borderedProminent).disabled(model.isStartingPreviewServer || model.isRunningCommand)
@@ -687,6 +683,21 @@ struct BuilderWorkspace: View {
                 }.padding(18).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }.background(BrandTheme.background)
+    }
+
+    private func runOrRefreshPreview() {
+        guard model.workspaceURL != nil else {
+            model.openWorkspace(navigateToProjects: false)
+            return
+        }
+        if model.previewServerURL != nil {
+            model.previewRefreshID = UUID()
+            return
+        }
+        model.refreshPreview(navigateToVisualEditor: false)
+        if model.previewFileURL == nil {
+            model.startProjectPreviewServer()
+        }
     }
 
     private func submitComposer() {
