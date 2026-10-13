@@ -66,6 +66,6 @@ Review generated code and shell commands before executing them. Chat attachments
 
 ## Workflow isolation and status
 
-All current desktop work is on the separate branch named desktop-productization in the AIStudio repository. The GitHub Actions build is temporarily configured for manual dispatch only, so pushes do not start a build while the reference-matched UI and functionality are being corrected. After the fixes are complete, start one manual build and use its artifact for testing. It does not run for pull requests, and no pull request is created automatically. Commits made to this branch update the fork's branch only; they do not update the parent repository's public branch.
+All current desktop work is on the separate branch named desktop-productization in the AIStudio repository. The GitHub Actions build runs on pushes to `desktop-productization` and can also be started manually. Use the artifact from the exact successful run corresponding to the source you intend to install. It does not run for pull requests, and no pull request is created automatically. Commits made to this branch update the fork's branch only; they do not update the parent repository's public branch.
 
 The app is not release-ready until the branch's automated build, startup smoke test, and live provider/file-workspace tests pass.
