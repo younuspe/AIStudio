@@ -1,7 +1,9 @@
 name: Native macOS desktop build
 
 on:
-  # Builds are deliberately manual while the reference-matched UI and functionality are being corrected.
+  push:
+    branches:
+      - desktop-productization
   workflow_dispatch:
 
 permissions:
