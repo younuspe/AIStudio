@@ -838,15 +838,18 @@ final class AppModel: ObservableObject {
                     """
                 } else {
                     planSystem = """
-                    You are a senior software architect planning a complete, runnable project.
+                    You are a staff-level software architect planning a complete, runnable application that is maintainable beyond a demo.
                     Return ONLY one valid JSON object with this exact shape:
                     {"files":[{"path":"relative/path.ext","purpose":"what this file implements"}]}
-                    Plan between 1 and 60 useful files for a complete, runnable application. Include the actual application UI,
-                    functional state and interactions, dependency manifest, runtime/build configuration, README, and starter tests.
-                    If the user did not specify a stack, prefer a local web app using React, TypeScript, and Vite with npm scripts.
-                    Do not produce a static visual-only mockup or placeholder handlers. All visible controls must perform their
-                    described actions. Keep all paths relative; avoid generated output, binary assets, lockfiles, and unnecessary files.
-                    Do not output Markdown fences or explanation outside JSON.
+                    Plan 1–60 purposeful files. Separate UI, domain/state, data access, and API/service concerns when complexity warrants it.
+                    Include the real application UI, functional state and interactions, dependency manifest, runtime/build configuration,
+                    README, and meaningful tests for important behavior. Honor the user's requested stack; if none is specified, use
+                    React + TypeScript + Vite for a local web app. Add a real backend, persistence layer, API routes, and validation
+                    when the requirements need them; never pretend a remote service or database exists when it is not implemented.
+                    Specify loading, empty, success, and error states; accessible keyboard/focus behavior; responsive layouts; validated
+                    inputs; and clear module boundaries. Every visible control must have a real action, not a placeholder handler.
+                    Include test/build scripts and practical run instructions. Avoid unnecessary abstractions, duplicate files, secrets,
+                    binary assets, lockfiles, and generated output. Keep every path relative and return JSON only, without Markdown fences.
                     """
                 }
                 let planReply = try await AIProviderClient.complete(
@@ -898,16 +901,18 @@ final class AppModel: ObservableObject {
                         """
                     } else {
                         fileSystemPrompt = """
-                        You are a senior software engineer writing production-quality project source files.
+                        You are a staff-level engineer implementing production-minded source files for a real application.
                         Return ONLY valid JSON in this shape:
                         {"files":[{"path":"relative/path.ext","content":"complete file content"}]}
-                        Generate the complete contents for every requested file, with correct JSON escaping.
-                        Implement all described interactions and real application behavior, not just a visual scaffold.
-                        Include error/loading/empty states, input validation, reasonable accessibility, and tests where suitable.
-                        Include dependency manifests and accurate dev/build/test scripts. Do not invent credentials or claim a
-                        backend exists when it does not; use an honest local implementation if no backend was specified.
-                        Return every requested path exactly once, do not add unrequested paths, do not use Markdown fences,
-                        and do not place explanatory text outside the JSON object.
+                        Generate complete contents for every requested file with valid JSON escaping and consistent imports, types,
+                        routes, data contracts, and scripts across the batch. Implement the actual behavior described by each file's
+                        purpose; never substitute mock-only handlers, dead buttons, TODOs, or success messages for unfinished work.
+                        Handle loading, empty, validation, failure, and retry states. Use accessible semantic controls, keyboard support,
+                        responsive layouts, and safe handling of untrusted input. Keep secrets out of source and browser bundles.
+                        Use real persistence/API behavior when specified; otherwise clearly implement a useful local mode without
+                        claiming an external backend exists. Include meaningful tests for critical logic when test files are requested,
+                        and ensure package scripts accurately match the generated project. Return every requested path exactly once,
+                        add no unrequested paths, use no Markdown fences, and put no explanation outside the JSON object.
                         """
                     }
                     let fileReply = try await AIProviderClient.complete(
