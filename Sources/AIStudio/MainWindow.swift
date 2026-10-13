@@ -30,33 +30,30 @@ struct MainWindow: View {
     private var activeSection: MainSection { model.selectedSection ?? .chat }
 
     var body: some View {
-        HStack(spacing: 0) {
-            sidebar
-                .frame(width: 196)
+        VStack(spacing: 0) {
+            topToolbar
             Divider()
-            VStack(spacing: 0) {
-                topToolbar
-                Divider()
-                Group {
-                    switch activeSection {
-                    case .chat:
-                        BuilderWorkspace(model: model)
-                    case .generativeStudio:
-                        GenerativeStudioWorkspace(model: model)
-                    case .projects:
-                        ProjectWorkspace(model: model)
-                    case .visualEditor:
-                        VisualEditorWorkspace(model: model)
-                    case .developerTools:
-                        DeveloperToolsWorkspace(model: model)
-                    case .settings:
-                        SettingsWorkspace(model: model)
-                    }
+            Group {
+                switch activeSection {
+                case .chat:
+                    BuilderWorkspace(model: model)
+                case .generativeStudio:
+                    GenerativeStudioWorkspace(model: model)
+                case .projects:
+                    ProjectWorkspace(model: model)
+                case .visualEditor:
+                    VisualEditorWorkspace(model: model)
+                case .developerTools:
+                    DeveloperToolsWorkspace(model: model)
+                case .settings:
+                    SettingsWorkspace(model: model)
                 }
-                .frame(minWidth: 900, minHeight: 600)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(BrandTheme.background)
             }
+            .frame(minWidth: 1120, minHeight: 620)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(BrandTheme.background)
+            Divider()
+            brandFooter
         }
         .frame(minWidth: 1320, minHeight: 760)
         .background(BrandTheme.background)
@@ -72,129 +69,11 @@ struct MainWindow: View {
         }
     }
 
-    private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Button {
-                model.selectedSection = .chat
-            } label: {
-                sidebarItem("Build", symbol: "sparkles", section: .chat)
-            }
-            .buttonStyle(.plain)
-            .help("Open the builder workspace")
-
-            Menu {
-                ForEach(model.threads) { thread in
-                    Button {
-                        model.activeThreadID = thread.id
-                        model.selectedSection = .chat
-                    } label: {
-                        Text(thread.title.isEmpty ? "New Chat" : thread.title)
-                    }
-                }
-                Divider()
-                Button("New Chat") {
-                    model.newChat()
-                    model.selectedSection = .chat
-                }
-            } label: {
-                sidebarItem("History", symbol: "clock.arrow.circlepath", section: nil)
-            }
-            .menuStyle(.borderlessButton)
-            .help("Open a previous conversation")
-
-            Button {
-                model.selectedSection = .generativeStudio
-            } label: {
-                sidebarItem("Gallery", symbol: "square.grid.2x2", section: .generativeStudio)
-            }
-            .buttonStyle(.plain)
-            .help("Open model and image studio")
-
-            Menu {
-                Button("Projects") { model.selectedSection = .projects }
-                Button("Visual Editor") { model.selectedSection = .visualEditor }
-                Button("Developer Tools") { model.selectedSection = .developerTools }
-            } label: {
-                sidebarItem("More tools", symbol: "ellipsis.circle", section: nil)
-            }
-            .menuStyle(.borderlessButton)
-
-            Spacer(minLength: 20)
-
-            Button {
-                model.selectedSection = .settings
-            } label: {
-                sidebarItem("Settings", symbol: "gearshape", section: .settings)
-            }
-            .buttonStyle(.plain)
-            .help("Provider and app settings")
-
-            Divider()
-                .padding(.vertical, 8)
-
-            HStack(spacing: 10) {
-                Spacer(minLength: 0)
-                if let iconURL = Bundle.main.url(forResource: "Supru", withExtension: "jpg"),
-                   let supruIcon = NSImage(contentsOf: iconURL) {
-                    Image(nsImage: supruIcon)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 36, height: 36)
-                        .clipShape(RoundedRectangle(cornerRadius: 9))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 9)
-                                .stroke(BrandTheme.hotOrange.opacity(0.55), lineWidth: 1)
-                        )
-                        .shadow(color: BrandTheme.hotOrange.opacity(0.12), radius: 7)
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Supru")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.primary)
-                    Text("App Builder")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 5)
-            .padding(.bottom, 8)
-        }
-        .padding(10)
-        .frame(maxHeight: .infinity)
-        .background(BrandTheme.panel)
-    }
-
-    private func sidebarItem(_ title: String, symbol: String, section: MainSection?) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: symbol)
-                .font(.system(size: 14, weight: .medium))
-                .frame(width: 18)
-            Text(title)
-                .font(.system(size: 13, weight: section == activeSection ? .semibold : .regular))
-            Spacer(minLength: 0)
-        }
-        .foregroundStyle(section == activeSection ? Color.white : BrandTheme.muted)
-        .padding(.horizontal, 11)
-        .frame(height: 38)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(section == activeSection ? BrandTheme.hotOrange.opacity(0.14) : Color.clear)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(section == activeSection ? BrandTheme.hotOrange.opacity(0.42) : Color.clear, lineWidth: 1)
-        )
-        .contentShape(Rectangle())
-    }
-
     private var topToolbar: some View {
         HStack(spacing: 12) {
             HStack(spacing: 7) {
-                Text("My workspace")
-                    .foregroundStyle(.secondary)
-                Text("/")
-                    .foregroundStyle(.tertiary)
+                Text("My workspace").foregroundStyle(.secondary)
+                Text("/").foregroundStyle(.tertiary)
                 Text(model.workspaceURL?.lastPathComponent ?? "Untitled app")
                     .fontWeight(.semibold)
                     .lineLimit(1)
@@ -209,11 +88,22 @@ struct MainWindow: View {
                     .fill(model.fileIsDirty ? BrandTheme.hotOrange : Color.green)
                     .frame(width: 6, height: 6)
                 Text(model.fileIsDirty ? "Unsaved changes" : (model.statusMessage ?? "All changes saved"))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
             }
             .frame(maxWidth: 190, alignment: .trailing)
+
+            Menu {
+                Button("Model Playground & Image Studio") { model.selectedSection = .generativeStudio }
+                Button("Projects & Files") { model.selectedSection = .projects }
+                Button("Visual Editor") { model.selectedSection = .visualEditor }
+                Button("Developer Tools") { model.selectedSection = .developerTools }
+                Divider()
+                Button("Providers & Settings") { model.selectedSection = .settings }
+            } label: {
+                Label("Tools", systemImage: "slider.horizontal.3")
+            }
+            .menuStyle(.borderlessButton)
+            .help("Open additional workspaces")
 
             Button {
                 model.newChat()
@@ -271,6 +161,31 @@ struct MainWindow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
+        .background(BrandTheme.panel)
+    }
+
+    private var brandFooter: some View {
+        HStack(spacing: 8) {
+            Spacer()
+            if let iconURL = Bundle.main.url(forResource: "Supru", withExtension: "jpg"),
+               let supruIcon = NSImage(contentsOf: iconURL) {
+                Image(nsImage: supruIcon)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 24, height: 24)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(BrandTheme.hotOrange.opacity(0.55), lineWidth: 1)
+                    )
+                    .shadow(color: BrandTheme.hotOrange.opacity(0.14), radius: 6)
+            }
+            Text("Supru App Builder")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(0.82))
+            Spacer()
+        }
+        .frame(height: 38)
         .background(BrandTheme.panel)
     }
 }
