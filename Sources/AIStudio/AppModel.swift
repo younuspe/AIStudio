@@ -314,6 +314,38 @@ final class AppModel: ObservableObject {
         threads[index].modifiedAt = Date()
     }
 
+    func exportWorkspaceArchive() {
+        guard let root = workspaceURL else {
+            lastError = "Open a project folder before exporting."
+            return
+        }
+        let panel = NSSavePanel()
+        panel.title = "Export Project as ZIP"
+        panel.nameFieldStringValue = "\(root.lastPathComponent).zip"
+        panel.allowedContentTypes = [.zip]
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let destination = panel.url else { return }
+
+        do {
+            if fileManager.fileExists(atPath: destination.path) {
+                try fileManager.removeItem(at: destination)
+            }
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+            process.arguments = ["-c", "-k", "--sequesterRsrc", "--keepParent", root.path, destination.path]
+            try process.run()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else {
+                throw NSError(domain: "SupruExport", code: Int(process.terminationStatus),
+                              userInfo: [NSLocalizedDescriptionKey: "The ZIP export process failed with status \(process.terminationStatus)."])
+            }
+            statusMessage = "Exported project to \(destination.lastPathComponent)."
+            lastError = nil
+        } catch {
+            lastError = "Project export failed: \(error.localizedDescription)"
+        }
+    }
+
     func openWorkspace() {
         let panel = NSOpenPanel()
         panel.title = "Open a project folder"
