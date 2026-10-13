@@ -994,6 +994,33 @@ final class AppModel: ObservableObject {
                     offset = end
                 }
 
+                statusMessage = "Checking generated source and runtime configuration…"
+                for file in generatedFiles {
+                    guard !file.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                        throw NSError(domain: "SupruGenerationValidation", code: 1,
+                                      userInfo: [NSLocalizedDescriptionKey: "Generated file \(file.path) is empty. No project files were written."])
+                    }
+                }
+
+                // Validate the generated package manifest before touching the user's folder.
+                // The default app stack is Vite, so a generated Node app must have real dev/build scripts.
+                if let packageFile = generatedFiles.first(where: {
+                    Self.normalizeProjectPath($0.path).lowercased() == "package.json"
+                }) {
+                    guard let manifestData = packageFile.content.data(using: .utf8),
+                          let manifest = try? JSONSerialization.jsonObject(with: manifestData) as? [String: Any] else {
+                        throw NSError(domain: "SupruGenerationValidation", code: 2,
+                                      userInfo: [NSLocalizedDescriptionKey: "Generated package.json is not valid JSON. No project files were written."])
+                    }
+                    let scripts = manifest["scripts"] as? [String: Any] ?? [:]
+                    let hasDevelopmentScript = scripts["dev"] is String || scripts["start"] is String
+                    let hasBuildScript = scripts["build"] is String
+                    guard hasDevelopmentScript, hasBuildScript else {
+                        throw NSError(domain: "SupruGenerationValidation", code: 3,
+                                      userInfo: [NSLocalizedDescriptionKey: "Generated package.json must include working development (dev or start) and build scripts. No project files were written."])
+                    }
+                }
+
                 var prepared: [(URL, Data)] = []
                 var totalBytes = 0
                 var finalPaths = Set<String>()
@@ -1056,7 +1083,7 @@ final class AppModel: ObservableObject {
                 projectPrompt = ""
                 refreshWorkspaceFiles()
                 isGeneratingProject = false
-                statusMessage = "Generated and saved \(prepared.count) project files."
+                statusMessage = "Generated and statically validated \(prepared.count) project files. Runtime tests have not been run."
                 selectedSection = replyThreadID == nil ? .projects : .chat
                 if let replyThreadID {
                     let listedFiles = prepared.prefix(40).map { "- \($0.0.path.replacingOccurrences(of: root.path + "/", with: ""))" }.joined(separator: "\n")
