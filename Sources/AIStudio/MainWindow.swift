@@ -112,7 +112,7 @@ struct MainWindow: View {
                 } else if let projectURL = model.workspaceURL {
                     NSWorkspace.shared.activateFileViewerSelecting([projectURL])
                 } else {
-                    model.openWorkspace()
+                    model.openWorkspace(navigateToProjects: false)
                 }
             } label: {
                 Label("Share", systemImage: "square.and.arrow.up")
