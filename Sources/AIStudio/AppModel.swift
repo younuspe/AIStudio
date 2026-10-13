@@ -1118,7 +1118,7 @@ final class AppModel: ObservableObject {
 
                     \(listedFiles)\(extra)
 
-                    **Next:** Open the Preview pane to run the application locally. Review generated scripts and dependencies before running them. File generation is not proof that the app builds or functions correctly; use Install, Build & Test to verify a Node-based web app.
+                    **Next:** Use the Preview pane's Run Preview control to load static HTML or start the project's configured local development server. Review generated scripts and dependencies before running them. Supru App Builder checks generated files and package scripts before writing, but it does not automatically run the generated project's tests or build.
                     """
                     append(summary, role: "assistant", to: replyThreadID)
                 }
